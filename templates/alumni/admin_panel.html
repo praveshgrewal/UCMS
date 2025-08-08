@@ -1,0 +1,612 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Admin Dashboard - UCMS Alumni Portal{% endblock %}
+
+{% block extra_css %}
+<style>
+/* New styles for Edit and Remove buttons */
+.alumni-actions .action-btn {
+    border-radius: 50px;
+    padding: 8px 18px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    transition: all 0.3s ease;
+    border: none;
+    cursor: pointer;
+}
+.alumni-actions .action-btn i {
+    margin-right: 6px;
+}
+.alumni-actions .action-btn.edit {
+    background-color: rgba(102, 126, 234, 0.2);
+    color: #86b7fe;
+}
+.alumni-actions .action-btn.edit:hover {
+    background-color: #667eea;
+    color: #fff;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+}
+.alumni-actions .action-btn.remove {
+    background-color: rgba(231, 76, 60, 0.2);
+    color: #e74c3c;
+}
+.alumni-actions .action-btn.remove:hover {
+    background-color: #e74c3c;
+    color: #fff;
+    box-shadow: 0 4px 15px rgba(231, 76, 60, 0.4);
+}
+/* Loading spinner for live search */
+.search-loading-spinner {
+    display: none; /* Hidden by default */
+    border: 4px solid rgba(255, 255, 255, 0.2);
+    border-left-color: #86b7fe;
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    animation: spin 1s linear infinite;
+    margin: 40px auto;
+}
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+</style>
+{% endblock %}
+
+{% block navbar %}
+<nav class="amazing-admin-navbar">
+    <div class="container">
+        <div class="admin-nav-content">
+            <div class="admin-brand">
+                <div class="brand-icon">
+                    <i class="fas fa-user-shield"></i>
+                </div>
+                <div class="brand-text">
+                    <h4>Admin Dashboard</h4>
+                    <span>Alumni Management</span>
+                </div>
+            </div>
+            <div class="admin-nav-actions">
+                <div class="admin-user-info">
+                    <div class="user-avatar">
+                        <i class="fas fa-user-cog"></i>
+                    </div>
+                    <span>Administrator</span>
+                </div>
+                <a href="{% url 'alumni:admin_logout' %}" class="logout-btn">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Logout</span>
+                </a>
+            </div>
+        </div>
+    </div>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="amazing-admin-container">
+    <div class="container py-5">
+        <!-- Dashboard Header -->
+        <div class="dashboard-header">
+            <div class="header-content">
+                <h1 class="dashboard-title">
+                    Welcome to Admin Dashboard
+                </h1>
+                <p class="dashboard-subtitle">
+                    Manage alumni registrations and directory with powerful tools
+                </p>
+            </div>
+            <div class="dashboard-stats">
+                <div class="stat-card">
+                    <div class="stat-icon pending">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3>{{ pending_requests.count }}</h3>
+                        <span>Pending Requests</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon approved">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 id="approved-alumni-count">{{ approved_alumni.count }}</h3>
+                        <span>Approved Alumni</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon total">
+                        <i class="fas fa-chart-bar"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3>{{ total_registrations|default:"0" }}</h3>
+                        <span>Total Registrations</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Pending Requests Section -->
+        <div class="admin-section">
+            <div class="section-header">
+                <div class="section-title">
+                    <div class="title-icon pending">
+                        <i class="fas fa-hourglass-half"></i>
+                    </div>
+                    <div class="title-text">
+                        <h3>Pending Reviews</h3>
+                        <span>Registration requests awaiting approval</span>
+                    </div>
+                </div>
+                <div class="section-badge">
+                    {{ pending_requests.count }} Pending
+                </div>
+            </div>
+            
+            <div class="amazing-card glass-morphism">
+                {% if pending_requests %}
+                    <div class="pending-requests-grid">
+                        {% for request in pending_requests %}
+                        <div class="pending-request-card">
+                            <div class="request-header">
+                                <div class="request-avatar">
+                                    {% if request.photo %}
+                                        <img src="{{ request.photo.url }}" alt="{{ request.name }}">
+                                    {% else %}
+                                        <i class="fas fa-user-graduate"></i>
+                                    {% endif %}
+                                </div>
+                                <div class="request-info">
+                                    <h5>{{ request.name }}</h5>
+                                    <span class="request-association">{{ request.academic_association }}</span>
+                                </div>
+                                <div class="request-time">
+                                    <i class="fas fa-clock"></i>
+                                    <span>{{ request.created_at|timesince }} ago</span>
+                                </div>
+                            </div>
+                            
+                            <div class="request-details">
+                                <div class="detail-item">
+                                    <i class="fas fa-envelope"></i>
+                                    <span>{{ request.email }}</span>
+                                </div>
+                                <div class="detail-item">
+                                    <i class="fas fa-phone"></i>
+                                    <span>{{ request.contact_number }}</span>
+                                </div>
+                                <div class="detail-item">
+                                    <i class="fas fa-map-marker-alt"></i>
+                                    <span>{{ request.city }}, {{ request.country }}</span>
+                                </div>
+                            </div>
+                            
+                            <div class="request-actions">
+                                <a href="{% url 'alumni:admin_review' request.id %}" class="review-btn">
+                                    <i class="fas fa-search"></i>
+                                    <span>Review Application</span>
+                                </a>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="empty-state">
+                        <div class="empty-icon">
+                            <i class="fas fa-check-double"></i>
+                        </div>
+                        <h4>All Caught Up!</h4>
+                        <p>No pending registration requests at the moment</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    
+        <!-- Alumni Management Section -->
+        <div class="admin-section">
+            <div class="section-header">
+                <div class="section-title">
+                    <div class="title-icon directory">
+                        <i class="fas fa-address-book"></i>
+                    </div>
+                    <div class="title-text">
+                        <h3>Alumni Directory Management</h3>
+                        <span>Search, view, and manage approved alumni records</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Advanced Search Panel -->
+            <div class="amazing-card glass-morphism search-panel">
+                <div class="search-header">
+                    <h4>
+                        <i class="fas fa-search"></i>
+                        Advanced Search & Filters
+                    </h4>
+                    <button type="button" class="toggle-search-btn" onclick="toggleAdvancedSearch()">
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                </div>
+                
+                <div class="search-content" id="advancedSearch">
+                    <form method="get" id="searchForm">
+                        <div class="search-grid">
+                            <div class="search-group">
+                                <label class="search-label">
+                                    <i class="fas fa-user"></i>
+                                    Name
+                                </label>
+                                <input type="text" name="name" class="search-input" placeholder="Search by name...">
+                            </div>
+                            
+                            <div class="search-group">
+                                <label class="search-label">
+                                    <i class="fas fa-calendar"></i>
+                                    Joining Year
+                                </label>
+                                <input type="number" name="joining_year" class="search-input" placeholder="e.g. 2010">
+                            </div>
+                            
+                            <div class="search-group">
+                                <label class="search-label">
+                                    <i class="fas fa-building"></i>
+                                    Work Association
+                                </label>
+                                <input type="text" name="work_association" class="search-input" placeholder="Hospital, clinic...">
+                            </div>
+                            
+                            <div class="search-group">
+                                <label class="search-label">
+                                    <i class="fas fa-stethoscope"></i>
+                                    Specialization
+                                </label>
+                                <input type="text" name="specialization" class="search-input" placeholder="Cardiology, Surgery...">
+                            </div>
+                            
+                            <div class="search-group">
+                                <label class="search-label">
+                                    <i class="fas fa-map-marker-alt"></i>
+                                    Location
+                                </label>
+                                <input type="text" name="location" class="search-input" placeholder="City, Country...">
+                            </div>
+                            
+                            <div class="search-group">
+                                <label class="search-label">
+                                    <i class="fas fa-id-badge"></i>
+                                    Designation
+                                </label>
+                                <input type="text" name="designation" class="search-input" placeholder="Doctor, Consultant...">
+                            </div>
+                        </div>
+                        
+                        <div class="search-actions">
+                            <!-- Buttons are now just for clearing -->
+                            <button type="button" class="search-btn secondary" onclick="clearSearch()">
+                                <i class="fas fa-times"></i>
+                                <span>Clear Filters</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Alumni Results -->
+            <div class="amazing-card glass-morphism alumni-results">
+                <div class="results-header">
+                    <h4>
+                        <i class="fas fa-users"></i>
+                        Alumni Directory
+                        <span class="results-count" id="alumni-results-count">{{ approved_alumni.count }} found</span>
+                    </h4>
+                </div>
+                
+                <div class="search-loading-spinner" id="search-spinner"></div>
+                
+                <div class="alumni-grid" id="alumni-grid-container">
+                    <!-- Search results will be injected here by JavaScript -->
+                    {% for alumni in approved_alumni %}
+                    <div class="alumni-card">
+                        <div class="alumni-header">
+                            <div class="alumni-avatar">
+                                {% if alumni.photo %}
+                                    <img src="{{ alumni.photo.url }}" alt="{{ alumni.name }}">
+                                {% else %}
+                                    <i class="fas fa-user-circle"></i>
+                                {% endif %}
+                            </div>
+                            <div class="alumni-info">
+                                <h5>{{ alumni.name }}</h5>
+                                <span class="alumni-association">{{ alumni.academic_association }}</span>
+                            </div>
+                            <div class="alumni-status">
+                                <span class="status-badge approved">
+                                    <i class="fas fa-check"></i>
+                                    Approved
+                                </span>
+                            </div>
+                        </div>
+                        
+                        <div class="alumni-details">
+                            <div class="detail-row">
+                                <div class="detail-item">
+                                    <i class="fas fa-graduation-cap"></i>
+                                    <span>UG: {{ alumni.joining_year_ug }}</span>
+                                </div>
+                                {% if alumni.joining_year_pg %}
+                                <div class="detail-item">
+                                    <i class="fas fa-user-graduate"></i>
+                                    <span>PG: {{ alumni.joining_year_pg }}</span>
+                                </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="detail-row">
+                                <div class="detail-item">
+                                    <i class="fas fa-stethoscope"></i>
+                                    <span>{{ alumni.specialty|default:'N/A' }}</span>
+                                </div>
+                            </div>
+                            
+                            <div class="detail-row">
+                                <div class="detail-item">
+                                    <i class="fas fa-map-marker-alt"></i>
+                                    <span>{{ alumni.city }}, {{ alumni.country }}</span>
+                                </div>
+                            </div>
+                            
+                            <div class="detail-row">
+                                <div class="detail-item">
+                                    <i class="fas fa-briefcase"></i>
+                                    <span>{{ alumni.current_designation|default:'N/A' }}</span>
+                                </div>
+                            </div>
+                            
+                            <div class="detail-row">
+                                <div class="detail-item full-width">
+                                    <i class="fas fa-hospital"></i>
+                                    <span>{{ alumni.current_work_association|default:'N/A' }}</span>
+                                </div>
+                            </div>
+                        </div>
+                   <div class="alumni-actions d-flex gap-3 mt-3">
+  <button type="button" class="btn btn-outline-primary d-flex align-items-center gap-2 shadow-sm px-3" onclick="editAlumni({{ alumni.id }})">
+    <i class="fas fa-edit"></i>
+    <span>Edit</span>
+  </button>
+
+  <button type="button" class="btn btn-outline-danger d-flex align-items-center gap-2 shadow-sm px-3" onclick="confirmRemove({{ alumni.id }})">
+    <i class="fas fa-trash-alt"></i>
+    <span>Remove</span>
+  </button>
+</div>
+
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Amazing Confirmation Modal -->
+<div class="modal fade" id="confirmModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content amazing-modal">
+            <div class="modal-header" id="modalHeader">
+                <div class="modal-icon" id="modalIcon">
+                    <i class="fas fa-question-circle"></i>
+                </div>
+                <div class="modal-title-content">
+                    <h5 class="modal-title" id="modalTitle">Confirm Action</h5>
+                    <p class="modal-subtitle" id="modalSubtitle"></p>
+                </div>
+                <button type="button" class="btn-close amazing-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <p>Are you sure you want to perform this action?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="modal-btn secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times"></i>
+                    <span>Cancel</span>
+                </button>
+                <button type="button" class="modal-btn primary" id="confirmActionBtn">
+                    <i class="fas fa-check" id="confirmIcon"></i>
+                    <span id="confirmText">Confirm</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentAlumniId = null;
+let currentAction = null;
+
+// Debounce utility function
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const searchForm = document.getElementById('searchForm');
+    if (searchForm) {
+        const searchInputs = searchForm.querySelectorAll('.search-input');
+        searchInputs.forEach(input => {
+            // Use debounce to prevent API calls on every keystroke
+            input.addEventListener('input', debounce(performLiveSearch, 400));
+        });
+    }
+});
+
+// Perform Live Search via Fetch API
+async function performLiveSearch() {
+    const form = document.getElementById('searchForm');
+    const params = new URLSearchParams(new FormData(form)).toString();
+    const resultsContainer = document.getElementById('alumni-grid-container');
+    const spinner = document.getElementById('search-spinner');
+    const resultsCountEl = document.getElementById('alumni-results-count');
+
+    spinner.style.display = 'block';
+    resultsContainer.style.display = 'none';
+
+    try {
+        const response = await fetch(`/admin-search/?${params}`);
+        const data = await response.json();
+        
+        if (data.error) {
+            throw new Error(data.error);
+        }
+
+        renderAlumniGrid(data.alumni);
+        resultsCountEl.textContent = `${data.alumni.length} found`;
+
+    } catch (error) {
+        console.error("Search failed:", error);
+        resultsContainer.innerHTML = `<div class="empty-state"><p>Error loading results. Please try again.</p></div>`;
+    } finally {
+        spinner.style.display = 'none';
+        resultsContainer.style.display = 'grid'; // Or 'block' depending on your layout
+    }
+}
+
+// Render Alumni Grid with data from Fetch API
+function renderAlumniGrid(alumniList) {
+    const container = document.getElementById('alumni-grid-container');
+    container.innerHTML = ''; // Clear previous results
+
+    if (alumniList.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state" style="grid-column: 1 / -1;">
+                <div class="empty-icon"><i class="fas fa-search-minus"></i></div>
+                <h4>No Results Found</h4>
+                <p>No alumni match your search criteria. Try adjusting your filters.</p>
+            </div>`;
+        return;
+    }
+
+    alumniList.forEach(alumni => {
+        const photoHtml = alumni.photo_url
+            ? `<img src="${alumni.photo_url}" alt="${alumni.name}">`
+            : `<i class="fas fa-user-circle"></i>`;
+        
+        const pgHtml = alumni.joining_year_pg
+            ? `<div class="detail-item"><i class="fas fa-user-graduate"></i><span>PG: ${alumni.joining_year_pg}</span></div>` : '';
+
+        const cardHtml = `
+            <div class="alumni-card">
+                <div class="alumni-header">
+                    <div class="alumni-avatar">${photoHtml}</div>
+                    <div class="alumni-info">
+                        <h5>${alumni.name}</h5>
+                        <span class="alumni-association">${alumni.academic_association}</span>
+                    </div>
+                    <div class="alumni-status">
+                        <span class="status-badge approved"><i class="fas fa-check"></i> Approved</span>
+                    </div>
+                </div>
+                <div class="alumni-details">
+                    <div class="detail-row">
+                        <div class="detail-item"><i class="fas fa-graduation-cap"></i><span>UG: ${alumni.joining_year_ug}</span></div>
+                        ${pgHtml}
+                    </div>
+                    <div class="detail-row"><div class="detail-item"><i class="fas fa-stethoscope"></i><span>${alumni.specialty}</span></div></div>
+                    <div class="detail-row"><div class="detail-item"><i class="fas fa-map-marker-alt"></i><span>${alumni.city}, ${alumni.country}</span></div></div>
+                    <div class="detail-row"><div class="detail-item"><i class="fas fa-briefcase"></i><span>${alumni.current_designation}</span></div></div>
+                    <div class="detail-row"><div class="detail-item full-width"><i class="fas fa-hospital"></i><span>${alumni.current_work_association}</span></div></div>
+                </div>
+                <div class="alumni-actions">
+                    <button type="button" class="action-btn edit" onclick="editAlumni(${alumni.id})">
+                        <i class="fas fa-edit"></i><span>Edit</span>
+                    </button>
+                    <button type="button" class="action-btn remove" onclick="confirmRemove(${alumni.id})">
+                        <i class="fas fa-trash-alt"></i><span>Remove</span>
+                    </button>
+                </div>
+            </div>`;
+        container.innerHTML += cardHtml;
+    });
+}
+
+
+// Clear search filters and reload initial data
+function clearSearch() {
+    const form = document.getElementById('searchForm');
+    form.reset();
+    performLiveSearch(); // Perform a search with empty filters to show all results
+}
+
+// Toggle advanced search panel
+function toggleAdvancedSearch() {
+    const searchContent = document.getElementById('advancedSearch');
+    const toggleBtn = document.querySelector('.toggle-search-btn i');
+    
+    if (searchContent.style.display === 'none' || !searchContent.style.display) {
+        searchContent.style.display = 'block';
+        searchContent.style.animation = 'slideDown 0.3s ease-out';
+        toggleBtn.className = 'fas fa-chevron-up';
+    } else {
+        searchContent.style.animation = 'slideUp 0.3s ease-out';
+        setTimeout(() => {
+            searchContent.style.display = 'none';
+            toggleBtn.className = 'fas fa-chevron-down';
+        }, 300);
+    }
+}
+
+// Edit alumni - redirects to the edit page
+function editAlumni(alumniId) {
+    window.location.href = `/admin-edit/${alumniId}/`;
+}
+
+// Confirm remove alumni - shows confirmation modal
+function confirmRemove(alumniId) {
+    currentAlumniId = alumniId;
+    currentAction = 'remove';
+    
+    const modal = document.getElementById('confirmModal');
+    const modalHeader = document.getElementById('modalHeader');
+    const modalIcon = document.getElementById('modalIcon');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalSubtitle = document.getElementById('modalSubtitle');
+    const modalBody = document.getElementById('modalBody');
+    const confirmIcon = document.getElementById('confirmIcon');
+    const confirmText = document.getElementById('confirmText');
+    const confirmBtn = document.getElementById('confirmActionBtn');
+    
+    modalHeader.className = 'modal-header remove';
+    modalIcon.innerHTML = '<i class="fas fa-exclamation-triangle"></i>';
+    modalTitle.textContent = 'Remove Alumni';
+    modalSubtitle.textContent = 'This action cannot be undone';
+    modalBody.innerHTML = '<p>Are you sure you want to remove this alumni from the directory? This will permanently delete their record.</p>';
+    confirmIcon.className = 'fas fa-trash';
+    confirmText.textContent = 'Remove';
+    confirmBtn.className = 'modal-btn danger';
+    
+    const bootstrapModal = new bootstrap.Modal(modal);
+    bootstrapModal.show();
+}
+
+// Handle confirmation action
+document.getElementById('confirmActionBtn').addEventListener('click', function() {
+    if (currentAlumniId && currentAction === 'remove') {
+        // Redirect to the action URL which will handle deletion
+        window.location.href = `/admin-action/${currentAlumniId}/delete/`;
+    }
+});
+
+</script>
+{% endblock %}

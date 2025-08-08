@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Login - UCMS Alumni Portal{% endblock %}
+
+{% block navbar %}{% endblock %}
+
+{% block content %}
+<div class="login-container">
+    <div class="container-fluid h-100">
+        <div class="row h-100">
+            <!-- Left side - Login Form -->
+            <div class="col-lg-6 d-flex align-items-center justify-content-center login-form-section">
+                <div class="login-card">
+                    <div class="login-header">
+                        <h2 class="text-white mb-3">Welcome Back</h2>
+                        <p class="text-light mb-4">Enter your registered phone or email to login</p>
+                    </div>
+                    
+                    <form method="post" id="loginForm">
+                        {% csrf_token %}
+                        <div class="mb-4">
+                            {{ form.contact }}
+                        </div>
+                        
+                        <button type="submit" class="btn btn-warning w-100 py-3 fw-bold">
+                            Send OTP
+                        </button>
+                    </form>
+                    
+                    <div class="mt-4 text-center">
+                        <p class="text-light">
+                            Not registered? 
+                            <a href="{% url 'alumni:register' %}" class="text-warning text-decoration-underline">
+                                Register Now
+                            </a>
+                        </p>
+                    </div>
+                    
+                    <!-- Admin Login Button -->
+                    <div class="text-center mt-4">
+                        <a href="{% url 'alumni:admin_login' %}" class="btn btn-outline-light">
+                            <i class="fas fa-user-shield"></i> Admin Login
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Right side - Welcome Message -->
+            <div class="col-lg-6 d-flex align-items-center justify-content-center welcome-section">
+                <div class="welcome-content text-center">
+                    <h1 class="display-4 text-white mb-4">Welcome to the UCMS Alumni Portal</h1>
+                    <p class="lead text-light mb-4">A dedicated space to reconnect, reflect, and engage.</p>
+                    <p class="text-light">
+                        Register to become part of the UCMS Alumni community and help strengthen our network.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

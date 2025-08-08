@@ -1,0 +1,430 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Registration - UCMS Alumni Portal{% endblock %}
+
+{% block navbar %}{% endblock %}
+
+{% block content %}
+<div class="modern-registration-container">
+    <div class="container py-5">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <div class="amazing-registration-card glass-morphism">
+
+                    <!-- Header -->
+                    <div class="registration-header">
+                        <div class="registration-icon">
+                            <i class="fas fa-user-graduate"></i>
+                        </div>
+                        <h2 class="amazing-title">Join Our Alumni Network</h2>
+                        <p class="amazing-subtitle">Connect with fellow graduates and expand your professional network</p>
+                    </div>
+
+                    <!-- Progress -->
+                    <div class="registration-progress">
+                        <div class="progress-step active" data-step="1">
+                            <span class="step-number">1</span>
+                            <span class="step-label">Details</span>
+                        </div>
+                        <div class="progress-line"></div>
+                        <div class="progress-step" data-step="2">
+                            <span class="step-number">2</span>
+                            <span class="step-label">Verify</span>
+                        </div>
+                        <div class="progress-line"></div>
+                        <div class="progress-step" data-step="3">
+                            <span class="step-number">3</span>
+                            <span class="step-label">Complete</span>
+                        </div>
+                    </div>
+
+                    <!-- Step 1: Registration Form -->
+                    <div class="registration-step" id="step1">
+                        <form method="post" enctype="multipart/form-data" id="registrationForm">
+                            {% csrf_token %}
+
+                            <div class="form-grid">
+                                <!-- Personal Information -->
+                                <div class="form-section">
+                                    <h4 class="section-title">
+                                        <i class="fas fa-user-graduate"></i>
+                                        Personal Information
+                                    </h4>
+                                    <div class="form-group">
+                                        <label class="modern-label">Full Name</label>
+                                        <div class="input-container">
+                                            {{ form.name }}
+                                            <i class="fas fa-user input-icon"></i>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="modern-label">Academic Association</label>
+                                        <div class="input-container">
+                                            {{ form.academic_association }}
+                                            <i class="fas fa-graduation-cap input-icon"></i>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Academic Details -->
+                                <div class="form-section">
+                                    <h4 class="section-title">
+                                        <i class="fas fa-book"></i>
+                                        Academic Details
+                                    </h4>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label class="modern-label">Joining Year UG</label>
+                                            <div class="input-container">
+                                                {{ form.joining_year_ug }}
+                                                <i class="fas fa-calendar input-icon"></i>
+                                            </div>
+                                        </div>
+                                        <div class="form-group">
+                                            <label class="modern-label">Joining Year PG</label>
+                                            <div class="input-container">
+                                                {{ form.joining_year_pg }}
+                                                <i class="fas fa-calendar-alt input-icon"></i>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="modern-label">Specialty</label>
+                                        <div class="input-container">
+                                            {{ form.specialty }}
+                                            <i class="fas fa-stethoscope input-icon"></i>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Location -->
+                                <div class="form-section">
+                                    <h4 class="section-title">
+                                        <i class="fas fa-map-marker-alt"></i>
+                                        Location
+                                    </h4>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label class="modern-label">Country</label>
+                                            <div class="input-container">
+                                                {{ form.country }}
+                                                <i class="fas fa-globe input-icon"></i>
+                                            </div>
+                                        </div>
+                                        <div class="form-group">
+                                            <label class="modern-label">State/UT</label>
+                                            <div class="input-container">
+                                                {{ form.state }}
+                                                <i class="fas fa-map input-icon"></i>
+                                            </div>
+                                        </div>
+                                        <div class="form-group">
+                                            <label class="modern-label">City</label>
+                                            <div class="input-container">
+                                                {{ form.city }}
+                                                <i class="fas fa-city input-icon"></i>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Professional -->
+                                <div class="form-section">
+                                    <h4 class="section-title">
+                                        <i class="fas fa-briefcase"></i>
+                                        Professional Details
+                                    </h4>
+                                    <div class="form-group">
+                                        <label class="modern-label">Current Work Association</label>
+                                        <div class="input-container">
+                                            {{ form.current_work_association }}
+                                            <i class="fas fa-building input-icon"></i>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="modern-label">Current Designation</label>
+                                        <div class="input-container">
+                                            {{ form.current_designation }}
+                                            <i class="fas fa-id-badge input-icon"></i>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="modern-label">Associated Hospital/College/Institute</label>
+                                        <div class="input-container">
+                                            {{ form.associated_hospital }}
+                                            <i class="fas fa-hospital input-icon"></i>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Contact -->
+                                <div class="form-section">
+                                    <h4 class="section-title">
+                                        <i class="fas fa-phone"></i>
+                                        Contact Information
+                                    </h4>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label class="modern-label">Contact Number</label>
+                                            <div class="input-container">
+                                                {{ form.contact_number }}
+                                                <i class="fas fa-phone input-icon"></i>
+                                            </div>
+                                        </div>
+                                        <div class="form-group">
+                                            <label class="modern-label">Alternate Contact</label>
+                                            <div class="input-container">
+                                                {{ form.alternate_contact }}
+                                                <i class="fas fa-phone-alt input-icon"></i>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="modern-label">Email Address</label>
+                                        <div class="input-container">
+                                            {{ form.email }}
+                                            <i class="fas fa-envelope input-icon"></i>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Photo -->
+                                <div class="form-section">
+                                    <h4 class="section-title">
+                                        <i class="fas fa-camera"></i>
+                                        Profile Photo
+                                    </h4>
+                                    <div class="photo-upload-container">
+                                        <div class="photo-preview" id="photoPreview" style="cursor:pointer;">
+                                          <img
+                                            src="{% if form.instance.photo %}{{ form.instance.photo.url }}{% else %}/static/images/default.png{% endif %}"
+                                            style="width: 120px; height: 120px; border-radius: 50%; object-fit: cover;" />
+                                        </div>
+                                        <div style="display: none;">
+                                          {{ form.photo }}
+                                        </div>
+                                      </div>
+                                      
+                                    
+                                </div>
+
+                                <!-- Declaration -->
+                                <div class="form-section">
+                                    <div class="custom-checkbox">
+                                        {{ form.declaration }}
+                                        <label class="declaration-label" for="{{ form.declaration.id_for_label }}">
+                                            <i class="fas fa-check"></i>
+                                            I hereby confirm that the information provided is true and accurate to the best of my knowledge.
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Proceed Button -->
+                            <div class="form-actions">
+                                <button type="submit" class="amazing-btn primary">
+                                    <span class="btn-text">Proceed to Verification</span>
+                                    <i class="fas fa-arrow-right btn-icon"></i>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                 <!-- Step 2: OTP Verification -->
+<div class="registration-step" id="step2" style="display:none;">
+    <form method="post" action="{% url 'alumni:verify_registration_otp' %}">
+        {% csrf_token %}
+        <div class="verification-container">
+            <div class="verification-icon">
+                <i class="fas fa-shield-alt"></i>
+            </div>
+            <h3 class="verification-title">Verify Your Details</h3>
+            <p class="verification-subtitle">
+                We've sent OTP codes to your registered contact details
+            </p>
+
+            <div class="otp-inputs">
+                <!-- Phone OTP -->
+                <div class="otp-group form-group">
+                    <label class="modern-label">
+                        <i class="fas fa-phone"></i> Phone Verification
+                    </label>
+                    <div class="input-container otp-input-container">
+                        <input type="text" class="otp-input" name="phoneOtp" maxlength="6" placeholder="Enter OTP" required>
+                        <button type="button" class="resend-btn" onclick="resendOTP('phone')">
+                            <i class="fas fa-redo"></i> Resend
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Email OTP -->
+                <div class="otp-group form-group">
+                    <label class="modern-label">
+                        <i class="fas fa-envelope"></i> Email Verification
+                    </label>
+                    <div class="input-container otp-input-container">
+                        <input type="text" class="otp-input" name="emailOtp" maxlength="6" placeholder="Enter OTP" required>
+                        <button type="button" class="resend-btn" onclick="resendOTP('email')">
+                            <i class="fas fa-redo"></i> Resend
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- OTP Timer -->
+            <div class="verification-timer">
+                <i class="fas fa-clock"></i>
+                <span id="otpTimer">OTP expires in 5:00</span>
+            </div>
+        </div>
+
+        <!-- Buttons -->
+        <div class="form-actions">
+            <button type="button" class="amazing-btn secondary" onclick="goBackToForm()">
+                <i class="fas fa-arrow-left btn-icon"></i> Back to Form
+            </button>
+            <button type="submit" class="amazing-btn primary">
+                <span class="btn-text">Complete Registration</span>
+                <i class="fas fa-check btn-icon"></i>
+            </button>
+        </div>
+    </form>
+</div>
+
+
+                    <!-- Step 3: Success -->
+                    <div class="registration-step" id="step3" style="display:none;">
+                        <h3>Registration Completed!</h3>
+                        <p>Thank you for joining our alumni network.</p>
+                        <a href="{% url 'alumni:login' %}" class="amazing-btn primary">Go to Login</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function goBackToForm() {
+    document.getElementById('step2').style.display = 'none';
+    document.getElementById('step1').style.display = 'block';
+}
+
+function resendOTP(type) {
+    fetch("{% url 'alumni:send_otp' %}", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            "X-CSRFToken": "{{ csrf_token }}"
+        },
+        body: "contact=" + (type === 'phone' ? "{{ contact }}" : "{{ email }}")
+    })
+    .then(res => res.json())
+    .then(data => alert(data.message))
+    .catch(err => console.error(err));
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+  initializeScreenshotProtection();
+  initializeDirectorySearch();
+  setupFormValidation();
+  setupLocationSuggestions();
+  setupOTPTimer();
+  initializeRegistration(); // includes setupPhotoUpload
+});
+
+document.addEventListener('DOMContentLoaded', function () {
+        // ... existing initializations ...
+        
+        // This is the key change: Handle form submission with AJAX
+        document.getElementById('registrationForm').addEventListener('submit', function(event) {
+            event.preventDefault(); // Prevent default form submission
+
+            const form = event.target;
+            const formData = new FormData(form);
+            const submitBtn = form.querySelector('button[type="submit"]');
+
+            // Show a loading state
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Loading...';
+
+            fetch(form.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Handle the JSON response from your Django view
+                if (data.success) {
+                    // Form is valid, move to step 2
+                    document.getElementById('step1').style.display = 'none';
+                    document.getElementById('step2').style.display = 'block';
+                    document.querySelector('.progress-step[data-step="2"]').classList.add('active');
+                    // Store contact and email in JavaScript for the resend function
+                    window.contact = data.contact;
+                    window.email = data.email;
+                    startOTPTimer(); // Start the timer for OTP
+                } else {
+                    // Form is invalid, display errors
+                    displayFormErrors(data.errors, form);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred. Please try again.');
+            })
+            .finally(() => {
+                // Reset button state
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<span class="btn-text">Proceed to Verification</span><i class="fas fa-arrow-right btn-icon"></i>';
+            });
+        });
+    });
+
+    // A helper function to display errors from the JSON response
+    function displayFormErrors(errors, form) {
+        // Clear previous errors
+        form.querySelectorAll('.error-message').forEach(el => el.remove());
+
+        for (const fieldName in errors) {
+            const errorList = errors[fieldName];
+            const field = form.querySelector(`[name="${fieldName}"]`);
+            if (field) {
+                const errorMessageHtml = `<div class="error-message text-danger mt-1">${errorList.join('<br>')}</div>`;
+                field.closest('.form-group').insertAdjacentHTML('beforeend', errorMessageHtml);
+            }
+        }
+    }
+
+    // A new resendOTP function using the stored contact/email
+    function resendOTP(type) {
+        const contactToSend = type === 'phone' ? window.contact : window.email;
+        if (!contactToSend) {
+            alert('Contact information not found. Please go back to the form.');
+            return;
+        }
+
+        fetch("{% url 'alumni:resend_otp' %}", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+                "X-CSRFToken": "{{ csrf_token }}"
+            },
+            body: `contact=${encodeURIComponent(contactToSend)}`
+        })
+        .then(res => res.json())
+        .then(data => alert(data.message))
+        .catch(err => console.error(err));
+    }
+
+</script>
+{% endblock %}

@@ -1,0 +1,23 @@
+# Django core framework
+Django==5.0.7
+
+# WSGI server for production
+gunicorn==22.0.0
+
+# Static files serving in production
+whitenoise==6.7.0
+
+# Database URL parser (switch between SQLite locally and Postgres in production)
+dj-database-url==2.2.0
+
+# Postgres driver (used in production)
+psycopg2-binary==2.9.9
+
+# Pandas for data processing
+pandas==2.2.2
+
+# HTTP requests for API calls
+requests==2.32.3
+
+# Mailtrap API client for sending emails
+mailtrap==2.0.1

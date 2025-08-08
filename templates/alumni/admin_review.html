@@ -1,0 +1,214 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Admin Review - UCMS Alumni Portal{% endblock %}
+
+{% block navbar %}
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+    <div class="container">
+        <a class="navbar-brand" href="{% url 'alumni:admin_panel' %}">
+            <i class="fas fa-user-shield"></i> Admin Panel
+        </a>
+        <div class="navbar-nav ms-auto">
+            <a class="nav-link" href="{% url 'alumni:admin_panel' %}">
+                <i class="fas fa-arrow-left"></i> Back to Panel
+            </a>
+            <a class="nav-link" href="{% url 'alumni:admin_logout' %}">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </a>
+        </div>
+    </div>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h4 class="mb-0">Admin Review Page</h4>
+                    <small class="text-muted">Review registration request from {{ alumni.name }}</small>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <!-- Main Review Form -->
+                        <div class="col-lg-8">
+                            <div class="review-form">
+                                <div class="row g-3">
+                                    <!-- Row 1 -->
+                                    <div class="col-md-4">
+                                        <label class="review-label">1. Photo</label>
+                                        <div class="review-field">
+                                            {% if alumni.photo %}
+                                                <img src="{{ alumni.photo.url }}" alt="{{ alumni.name }}" class="review-photo">
+                                            {% else %}
+                                                <div class="review-photo-placeholder">
+                                                    <i class="fas fa-user"></i>
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="review-label">2. Name</label>
+                                        <div class="review-field">{{ alumni.name }}</div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="review-label">3. Academic Association</label>
+                                        <div class="review-field">{{ alumni.academic_association }}</div>
+                                    </div>
+                                    
+                                    <!-- Row 2 -->
+                                    <div class="col-md-6">
+                                        <label class="review-label">4. Joining Year UG</label>
+                                        <div class="review-field">{{ alumni.joining_year_ug }}</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="review-label">5. Joining Year PG</label>
+                                        <div class="review-field">{{ alumni.joining_year_pg|default:"-" }}</div>
+                                    </div>
+                                    
+                                    <!-- Row 3 -->
+                                    <div class="col-md-6">
+                                        <label class="review-label">6. Specialty</label>
+                                        <div class="review-field">{{ alumni.specialty }}</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="review-label">7. Location</label>
+                                        <div class="review-field">{{ alumni.city }}, {{ alumni.state }}, {{ alumni.country }}</div>
+                                    </div>
+                                    
+                                    <!-- Row 4 -->
+                                    <div class="col-12">
+                                        <label class="review-label">9. Current Work Association</label>
+                                        <div class="review-field">{{ alumni.current_work_association }}</div>
+                                    </div>
+                                    
+                                    <!-- Row 5 -->
+                                    <div class="col-12">
+                                        <label class="review-label">8. Current Designation</label>
+                                        <div class="review-field">{{ alumni.current_designation }}</div>
+                                    </div>
+                                    
+                                    <!-- Row 6 -->
+                                    <div class="col-12">
+                                        <label class="review-label">10. Associated Hospital/College/Institute</label>
+                                        <div class="review-field">{{ alumni.associated_hospital }}</div>
+                                    </div>
+                                    
+                                    <!-- Row 7 -->
+                                    <div class="col-md-4">
+                                        <label class="review-label">11. Contact No.</label>
+                                        <div class="review-field">{{ alumni.contact_number }}</div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="review-label">12. Alternate Contact No.</label>
+                                        <div class="review-field">{{ alumni.alternate_contact|default:"-" }}</div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="review-label">13. Email Id.</label>
+                                        <div class="review-field">{{ alumni.email }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Action Panel -->
+                        <div class="col-lg-4">
+                            <div class="action-panel">
+                                <div class="action-content">
+                                    <h6 class="action-title mb-4">Review Actions</h6>
+                                    
+                                    <div class="d-grid gap-2">
+                                        <button type="button" class="btn btn-success btn-lg" 
+                                                onclick="performAction('approve')">
+                                            <i class="fas fa-check"></i> Approve
+                                        </button>
+                                        
+                                        <button type="button" class="btn btn-danger btn-lg" 
+                                                onclick="performAction('reject')">
+                                            <i class="fas fa-times"></i> Reject
+                                        </button>
+                                        
+                                        <!-- <button type="button" class="btn btn-warning btn-lg" 
+                                                onclick="editInfo()">
+                                            <i class="fas fa-edit"></i> Edit Info
+                                        </button> -->
+                                    </div>
+                                    
+                                    <div class="mt-4 pt-3 border-top">
+                                        <small class="text-muted">
+                                            <i class="fas fa-info-circle"></i>
+                                            Submitted on: {{ alumni.created_at|date:"M d, Y" }}
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Confirmation Modal -->
+<div class="modal fade" id="actionModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header" id="modalHeader">
+                <h5 class="modal-title" id="modalTitle">Confirm Action</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <!-- Content will be updated by JavaScript -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn" id="confirmBtn">Confirm</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentAction = null;
+
+function performAction(action) {
+    currentAction = action;
+    const modal = new bootstrap.Modal(document.getElementById('actionModal'));
+    const modalHeader = document.getElementById('modalHeader');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalBody = document.getElementById('modalBody');
+    const confirmBtn = document.getElementById('confirmBtn');
+    
+    if (action === 'approve') {
+        modalHeader.className = 'modal-header bg-success text-white';
+        modalTitle.textContent = 'Approve Registration';
+        modalBody.innerHTML = '<p>Are you sure you want to approve this alumni registration?</p>';
+        confirmBtn.className = 'btn btn-success';
+        confirmBtn.textContent = 'Approve';
+    } else if (action === 'reject') {
+        modalHeader.className = 'modal-header bg-danger text-white';
+        modalTitle.textContent = 'Reject Registration';
+        modalBody.innerHTML = '<p>Are you sure you want to reject this alumni registration?</p>';
+        confirmBtn.className = 'btn btn-danger';
+        confirmBtn.textContent = 'Reject';
+    }
+    
+    modal.show();
+}
+
+function editInfo() {
+    alert('Edit functionality would be implemented here. This would open an editable form.');
+}
+
+document.getElementById('confirmBtn').addEventListener('click', function() {
+    if (currentAction) {
+        window.location.href = `/admin-action/{{ alumni.id }}/${currentAction}/`;
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,279 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ alumnus.name }} - Alumni Profile{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Google Font for better typography */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+    .profile-page-container {
+        padding: 4rem 0;
+        background: #1a1d34; /* Dark blue background */
+        font-family: 'Inter', sans-serif;
+    }
+    .profile-card-full {
+        background: #2a2f4a; /* Slightly lighter card background */
+        border-radius: 24px;
+        box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+        overflow: hidden;
+        color: #e0e7ff; /* Softer white text */
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .profile-header-banner {
+        height: 280px;
+        background: linear-gradient(to top, rgba(42, 47, 74, 1), rgba(42, 47, 74, 0)), url('https://placehold.co/1200x400/1a1d34/e0e7ff?text=UCMS+Network') no-repeat center center;
+        background-size: cover;
+        position: relative;
+    }
+    .btn-back-to-directory {
+        position: absolute;
+        top: 25px;
+        left: 30px;
+        color: #fff;
+        background-color: rgba(0,0,0,0.4);
+        padding: 10px 20px;
+        border-radius: 50px;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 0.9rem;
+        transition: all 0.3s ease;
+        backdrop-filter: blur(5px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        z-index: 10;
+    }
+    .btn-back-to-directory:hover {
+        background-color: rgba(255,255,255,0.9);
+        color: #1a1d34;
+        transform: translateY(-2px);
+    }
+    .btn-back-to-directory i {
+        margin-right: 8px;
+    }
+    .profile-header-content {
+        position: relative;
+        padding: 0 50px;
+        display: flex;
+        align-items: flex-end;
+        transform: translateY(-80px); /* Adjusted for larger avatar */
+        flex-wrap: wrap; /* For responsiveness */
+    }
+    .profile-avatar-full {
+        width: 160px;
+        height: 160px;
+        border-radius: 50%;
+        border: 6px solid #2a2f4a;
+        background-color: #3e446a;
+        overflow: hidden;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        flex-shrink: 0;
+    }
+    .profile-avatar-full img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    .profile-avatar-full .placeholder {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 70px;
+        color: #9b9fb9;
+    }
+    .profile-info-full {
+        margin-left: 30px;
+        margin-bottom: 15px;
+        flex-grow: 1;
+    }
+    .profile-info-full h2 {
+        font-size: 2.8rem;
+        font-weight: 700;
+        margin: 0;
+        color: #fff;
+        text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    }
+    .profile-info-full p {
+        font-size: 1.15rem;
+        color: #a8b2d3;
+        margin: 8px 0 0;
+    }
+    .profile-actions-full {
+        margin-bottom: 25px;
+    }
+    .profile-actions-full .social-link {
+        color: #a8b2d3;
+        font-size: 1.6rem;
+        margin-left: 20px;
+        transition: all 0.3s ease;
+    }
+    .profile-actions-full .social-link:hover {
+        color: #86b7fe;
+        transform: scale(1.1);
+    }
+    .profile-body {
+        padding: 0 50px 50px;
+        margin-top: -60px; /* Pull up the content */
+    }
+    .detail-section {
+        margin-top: 3.5rem;
+    }
+    .detail-section h4 {
+        color: #86b7fe;
+        font-size: 1.1rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+        border-bottom: 1px solid #3e446a;
+        padding-bottom: 12px;
+        margin-bottom: 25px;
+        display: flex;
+        align-items: center;
+    }
+    .detail-section h4 i {
+        margin-right: 12px;
+        font-size: 1.3rem;
+    }
+    .detail-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 25px;
+    }
+    .detail-item-box {
+        background: rgba(134, 183, 254, 0.05);
+        padding: 25px;
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        transition: all 0.3s ease;
+    }
+    .detail-item-box:hover {
+        transform: translateY(-5px);
+        background: rgba(134, 183, 254, 0.1);
+    }
+    .detail-item-box .label {
+        font-size: 0.9rem;
+        color: #a8b2d3;
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+    }
+    .detail-item-box .label i {
+        margin-right: 12px;
+        width: 20px;
+        text-align: center;
+        color: #86b7fe;
+    }
+    .detail-item-box .value {
+        font-size: 1.1rem;
+        font-weight: 500;
+        color: #fff;
+    }
+    .detail-item-box .value a {
+        color: #86b7fe;
+        text-decoration: none;
+        transition: color 0.3s ease;
+    }
+    .detail-item-box .value a:hover {
+        color: #fff;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="profile-page-container">
+    <div class="container">
+        <div class="profile-card-full">
+            <div class="profile-header-banner">
+                <a href="{% url 'alumni:directory' %}" class="btn-back-to-directory">
+                    <i class="fas fa-arrow-left"></i> Back to Directory
+                </a>
+            </div>
+            <div class="profile-header-content">
+                <div class="profile-avatar-full">
+                    {% if alumnus.photo %}
+                        <img src="{{ alumnus.photo.url }}" alt="{{ alumnus.name }}">
+                    {% else %}
+                        <div class="placeholder"><i class="fas fa-user-graduate"></i></div>
+                    {% endif %}
+                </div>
+                <div class="profile-info-full">
+                    <h2>{{ alumnus.name }}</h2>
+                    <p>{{ alumnus.current_designation|default:'Alumni Member' }} at {{ alumnus.current_work_association|default:'N/A' }}</p>
+                </div>
+                <div class="profile-actions-full">
+                    {% if alumnus.linkedin_url %}
+                        <a href="{{ alumnus.linkedin_url }}" target="_blank" class="social-link" title="LinkedIn"><i class="fab fa-linkedin"></i></a>
+                    {% endif %}
+                    {% if alumnus.twitter_url %}
+                        <a href="{{ alumnus.twitter_url }}" target="_blank" class="social-link" title="Twitter"><i class="fab fa-twitter"></i></a>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="profile-body">
+                <div class="detail-section">
+                    <h4><i class="fas fa-user-circle"></i> About</h4>
+                    <p class="lead">{{ alumnus.about_me|default:'No biography information provided.'|linebreaksbr }}</p>
+                </div>
+
+                <div class="detail-section">
+                    <h4><i class="fas fa-briefcase"></i> Professional Details</h4>
+                    <div class="detail-grid">
+                        <div class="detail-item-box">
+                            <div class="label"><i class="fas fa-hospital"></i> Work Association</div>
+                            <div class="value">{{ alumnus.current_work_association|default:'N/A' }}</div>
+                        </div>
+                        <div class="detail-item-box">
+                            <div class="label"><i class="fas fa-id-badge"></i> Designation</div>
+                            <div class="value">{{ alumnus.current_designation|default:'N/A' }}</div>
+                        </div>
+                        <div class="detail-item-box">
+                            <div class="label"><i class="fas fa-stethoscope"></i> Specialty</div>
+                            <div class="value">{{ alumnus.specialty|default:'N/A' }}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="detail-section">
+                    <h4><i class="fas fa-graduation-cap"></i> Academic Background</h4>
+                    <div class="detail-grid">
+                        <div class="detail-item-box">
+                            <div class="label"><i class="fas fa-university"></i> Academic Association</div>
+                            <div class="value">{{ alumnus.academic_association }}</div>
+                        </div>
+                        <div class="detail-item-box">
+                            <div class="label"><i class="fas fa-calendar-alt"></i> UG Batch</div>
+                            <div class="value">{{ alumnus.joining_year_ug }}</div>
+                        </div>
+                        {% if alumnus.joining_year_pg %}
+                        <div class="detail-item-box">
+                            <div class="label"><i class="fas fa-user-graduate"></i> PG Batch</div>
+                            <div class="value">{{ alumnus.joining_year_pg }}</div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="detail-section">
+                    <h4><i class="fas fa-phone-alt"></i> Contact Information</h4>
+                    <div class="detail-grid">
+                        <div class="detail-item-box">
+                            <div class="label"><i class="fas fa-envelope"></i> Email Address</div>
+                            <div class="value"><a href="mailto:{{ alumnus.email }}">{{ alumnus.email }}</a></div>
+                        </div>
+                        <div class="detail-item-box">
+                            <div class="label"><i class="fas fa-phone"></i> Contact Number</div>
+                            <div class="value"><a href="tel:{{ alumnus.contact_number }}">{{ alumnus.contact_number }}</a></div>
+                        </div>
+                        <div class="detail-item-box">
+                            <div class="label"><i class="fas fa-map-marker-alt"></i> Location</div>
+                            <div class="value">{{ alumnus.city }}, {{ alumnus.country }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

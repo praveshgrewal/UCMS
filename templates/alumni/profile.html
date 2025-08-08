@@ -1,0 +1,112 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Profile - UCMS Alumni Portal{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="card profile-card">
+                <div class="card-header amazing-profile-header text-white d-flex justify-content-between align-items-center">
+
+                    <h4 class="mb-0">
+                        <i class="fas fa-user-circle"></i> My Profile
+                    </h4>
+                    {% if user.is_superuser %}
+                        <a href="{% url 'alumni:edit_profile' %}" class="btn btn-warning">
+                            <i class="fas fa-edit"></i> Edit Profile
+                        </a>
+                    {% else %}
+                        <span class="badge bg-info">
+                            <i class="fas fa-eye"></i> View Only
+                        </span>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <!-- Photo and Basic Info -->
+                        <div class="col-md-4 text-center mb-4">
+                            {% if alumni.photo %}
+                                <img src="{{ alumni.photo.url }}" alt="{{ alumni.name }}" class="profile-photo mb-3">
+                            {% else %}
+                                <div class="profile-photo-placeholder mb-3">
+                                    <i class="fas fa-user fa-4x"></i>
+                                </div>
+                            {% endif %}
+                            <h5>{{ alumni.name }}</h5>
+                            <p class="text-muted">{{ alumni.specialty }}</p>
+                            <span class="badge bg-success">{{ alumni.get_status_display }}</span>
+                        </div>
+                        
+                        <!-- Profile Details -->
+                        <div class="col-md-8">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="profile-label">Academic Association</label>
+                                    <p class="profile-value">{{ alumni.academic_association }}</p>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="profile-label">Joining Year UG</label>
+                                    <p class="profile-value">{{ alumni.joining_year_ug }}</p>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="profile-label">Joining Year PG</label>
+                                    <p class="profile-value">{{ alumni.joining_year_pg|default:"-" }}</p>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <label class="profile-label">Current Work Association</label>
+                                    <p class="profile-value">{{ alumni.current_work_association }}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="profile-label">Current Designation</label>
+                                    <p class="profile-value">{{ alumni.current_designation }}</p>
+                                </div>
+                                
+                                <div class="col-12">
+                                    <label class="profile-label">Associated Hospital/College/Institute</label>
+                                    <p class="profile-value">{{ alumni.associated_hospital }}</p>
+                                </div>
+                                
+                                <div class="col-md-4">
+                                    <label class="profile-label">Country</label>
+                                    <p class="profile-value">{{ alumni.country }}</p>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="profile-label">State</label>
+                                    <p class="profile-value">{{ alumni.state }}</p>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="profile-label">City</label>
+                                    <p class="profile-value">{{ alumni.city }}</p>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <label class="profile-label">Contact Number</label>
+                                    <p class="profile-value">{{ alumni.contact_number }}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="profile-label">Alternate Contact</label>
+                                    <p class="profile-value">{{ alumni.alternate_contact|default:"-" }}</p>
+                                </div>
+                                
+                                <div class="col-12">
+                                    <label class="profile-label">Email</label>
+                                    <p class="profile-value">{{ alumni.email }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer text-muted">
+                    <small>
+                        <i class="fas fa-calendar"></i> Registered on: {{ alumni.created_at|date:"F d, Y" }}
+                        | Last updated: {{ alumni.updated_at|date:"F d, Y" }}
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

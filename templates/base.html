@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}UCMS Alumni Portal{% endblock %}</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- Custom CSS -->
+    <link href="{% load static %}{% static 'css/style.css' %}" rel="stylesheet">
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body data-is-admin="{% if user.is_superuser %}true{% else %}false{% endif %}">
+    {% if messages %}
+        <div class="message-container">
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    {% block navbar %}
+        {% if user.is_authenticated and not request.resolver_match.url_name == 'admin_panel' %}
+        <nav class="navbar navbar-expand-lg navbar-dark amazing-navbar">
+
+                <div class="container">
+                    <a class="navbar-brand" href="{% url 'alumni:directory' %}">
+                        <i class="fas fa-graduation-cap"></i> UCMS Alumni Portal
+                    </a>
+                    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                        <span class="navbar-toggler-icon"></span>
+                    </button>
+                    <div class="collapse navbar-collapse" id="navbarNav">
+                        <ul class="navbar-nav ms-auto">
+                            <li class="nav-item">
+                                <a class="nav-link" href="{% url 'alumni:directory' %}">Directory</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="{% url 'alumni:profile' %}">Profile</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="{% url 'alumni:logout' %}">Logout</a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </nav>
+        {% endif %}
+    {% endblock %}
+
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Custom JS -->
+    <script src="{% load static %}{% static 'js/main.js' %}"></script>
+    
+    {% block extra_js %}{% endblock %}
+
+    {% if not user.is_superuser %}
+    <script>
+      // Disable PrintScreen key
+      document.addEventListener("keyup", function (e) {
+        if (e.key === "PrintScreen") {
+          navigator.clipboard.writeText("");
+          alert("Screenshot is disabled for security reasons.");
+        }
+      });
+    
+      // Disable Ctrl+Shift+I, Ctrl+U, F12, etc.
+      document.addEventListener("keydown", function (e) {
+        if (
+          (e.ctrlKey && e.shiftKey && (e.key === "I" || e.key === "J")) || // DevTools
+          (e.ctrlKey && e.key === "U") || // View Source
+          e.key === "F12"
+        ) {
+          e.preventDefault();
+          alert("Developer tools are disabled.");
+        }
+      });
+    
+      // Optional: Hide screen content if page is hidden (used in exams)
+      document.addEventListener("visibilitychange", function () {
+        if (document.hidden) {
+          document.body.innerHTML = "<h2 style='text-align:center; margin-top:20vh;'>Screen capture is restricted.</h2>";
+        } else {
+          location.reload();
+        }
+      });
+    </script>
+    {% endif %}
+    
+</body>
+</html>

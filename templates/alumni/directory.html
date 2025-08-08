@@ -1,0 +1,437 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Alumni Directory - UCMS Alumni Portal{% endblock %}
+
+{% block content %}
+<div class="amazing-directory-container">
+    <div class="container py-5">
+        <!-- Directory Header -->
+        <div class="directory-header">
+            <div class="header-content">
+                <h1 class="directory-title">
+                    <i class="fas fa-users"></i>
+                    Alumni Directory
+                </h1>
+                <p class="directory-subtitle">
+                    Connect with fellow graduates from the UCMS family
+                </p>
+            </div>
+            <div class="directory-stats">
+                <div class="stat-bubble">
+                    <span class="stat-number">{{ alumni_list|length }}</span>
+                    <span class="stat-label">Alumni Found</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Intelligent Search Panel -->
+        <div class="search-section">
+            <div class="amazing-card glass-morphism">
+                <div class="search-header">
+                    <div class="search-title">
+                        <div class="search-icon">
+                            <i class="fas fa-search"></i>
+                        </div>
+                        <div class="search-text">
+                            <h3>Discover Alumni</h3>
+                            <span>Find your colleagues, mentors, and fellow graduates</span>
+                        </div>
+                    </div>
+                    <button type="button" class="search-toggle" onclick="toggleDirectorySearch()">
+                        <i class="fas fa-sliders-h"></i>
+                        <span>Advanced Filters</span>
+                    </button>
+                </div>
+                
+                <div class="search-content" id="directorySearchPanel">
+                    <form method="get" id="directorySearchForm">
+                        <div class="search-grid">
+                            <div class="search-group">
+                                <label class="search-label">
+                                    <i class="fas fa-user"></i>
+                                    Name
+                                </label>
+                                <div class="input-container">
+                                    {{ filter_form.name }}
+                                    <i class="fas fa-user input-icon"></i>
+                                </div>
+                            </div>
+                            
+                            <div class="search-group">
+                                <label class="search-label">
+                                    <i class="fas fa-calendar"></i>
+                                    Joining Year
+                                </label>
+                                <div class="input-container">
+                                    {{ filter_form.joining_year }}
+                                    <i class="fas fa-calendar input-icon"></i>
+                                </div>
+                            </div>
+                            
+                            <div class="search-group">
+                                <label class="search-label">
+                                    <i class="fas fa-building"></i>
+                                    Work Association
+                                </label>
+                                <div class="input-container">
+                                    {{ filter_form.work_association }}
+                                    <i class="fas fa-building input-icon"></i>
+                                </div>
+                            </div>
+                            
+                            <div class="search-group">
+                                <label class="search-label">
+                                    <i class="fas fa-stethoscope"></i>
+                                    Specialization
+                                </label>
+                                <div class="input-container">
+                                    {{ filter_form.specialization }}
+                                    <i class="fas fa-stethoscope input-icon"></i>
+                                </div>
+                            </div>
+                            
+                            <div class="search-group">
+                                <label class="search-label">
+                                    <i class="fas fa-map-marker-alt"></i>
+                                    Location
+                                </label>
+                                <div class="input-container">
+                                    {{ filter_form.location }}
+                                    <i class="fas fa-map-marker-alt input-icon"></i>
+                                </div>
+                            </div>
+                            
+                            <div class="search-group">
+                                <label class="search-label">
+                                    <i class="fas fa-id-badge"></i>
+                                    Designation
+                                </label>
+                                <div class="input-container">
+                                    {{ filter_form.designation }}
+                                    <i class="fas fa-id-badge input-icon"></i>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="search-actions">
+                            <button type="submit" class="search-btn primary">
+                                <i class="fas fa-search"></i>
+                                <span>Search Alumni</span>
+                            </button>
+                            <a href="{% url 'alumni:directory' %}" class="search-btn secondary">
+                                <i class="fas fa-sync-alt"></i>
+                                <span>Reset Filters</span>
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Alumni Grid Section -->
+        <div class="alumni-section">
+            {% if alumni_list %}
+                <div class="section-header">
+                    <div class="results-info">
+                        <h3>Search Results</h3>
+                        <span class="results-count">{{ alumni_list|length }} alumni found</span>
+                    </div>
+                    <div class="view-toggles">
+                        <button type="button" class="view-btn active" data-view="grid" onclick="switchView('grid')">
+                            <i class="fas fa-th-large"></i>
+                            <span>Grid View</span>
+                        </button>
+                        <button type="button" class="view-btn" data-view="list" onclick="switchView('list')">
+                            <i class="fas fa-list"></i>
+                            <span>List View</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Grid View -->
+                <div class="alumni-grid" id="gridView">
+                    {% for item in alumni_list %}
+                    <div class="alumni-profile-card" data-aos="fade-up" data-aos-delay="{{ item.delay }}">
+                        <div class="profile-card-header">
+                            <div class="profile-avatar">
+                                {% if item.alumni.photo %}
+                                    <img src="{{ item.alumni.photo.url }}" alt="{{ item.alumni.name }}">
+                                {% else %}
+                                    <div class="avatar-placeholder">
+                                        <i class="fas fa-user-graduate"></i>
+                                    </div>
+                                {% endif %}
+                                <div class="online-indicator"></div>
+                            </div>
+                            <div class="profile-actions">
+                                <button type="button" class="action-btn favorite" onclick="toggleFavorite({{ item.alumni.id }})">
+                                    <i class="far fa-heart"></i>
+                                </button>
+                                <a href="{% url 'alumni:alumni_detail_page' item.alumni.id %}" class="action-btn connect">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                            </div>
+                        </div>
+                        
+                        <div class="profile-content">
+                            <div class="profile-name">
+                                <h4>{{ item.alumni.name }}</h4>
+                                <span class="profile-title">{{ item.alumni.current_designation|default:'N/A' }}</span>
+                            </div>
+                            
+                            <div class="profile-details">
+                                <div class="detail-item">
+                                    <i class="fas fa-graduation-cap"></i>
+                                    <span>{{ item.alumni.academic_association }}</span>
+                                </div>
+                                
+                                <div class="detail-item">
+                                    <i class="fas fa-calendar"></i>
+                                    <span>Class of {{ item.alumni.joining_year_ug }}{% if item.alumni.joining_year_pg %} • PG {{ item.alumni.joining_year_pg }}{% endif %}</span>
+                                </div>
+                                
+                                <div class="detail-item">
+                                    <i class="fas fa-stethoscope"></i>
+                                    <span>{{ item.alumni.specialty|default:'N/A' }}</span>
+                                </div>
+                                
+                                <div class="detail-item">
+                                    <i class="fas fa-map-marker-alt"></i>
+                                    <span>{{ item.alumni.city }}, {{ item.alumni.country }}</span>
+                                </div>
+                                
+                                <div class="detail-item">
+                                    <i class="fas fa-hospital"></i>
+                                    <span>{{ item.alumni.current_work_association|default:'N/A' }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="profile-footer">
+                            <a href="{% url 'alumni:alumni_detail_page' item.alumni.id %}" class="profile-btn primary">
+                                <i class="fas fa-user"></i>
+                                <span>View Profile</span>
+                            </a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                <!-- List View -->
+                <div class="alumni-list" id="listView" style="display: none;">
+                    {% for item in alumni_list %}
+                    <div class="alumni-list-item" data-aos="fade-right" data-aos-delay="{{ item.delay }}">
+                        <div class="list-item-content">
+                            <div class="list-avatar">
+                                {% if item.alumni.photo %}
+                                    <img src="{{ item.alumni.photo.url }}" alt="{{ item.alumni.name }}">
+                                {% else %}
+                                    <div class="avatar-placeholder">
+                                        <i class="fas fa-user-graduate"></i>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="list-info">
+                            <div class="list-main">
+                                <h4>{{ item.alumni.name }}</h4>
+                                <span class="list-title">{{ item.alumni.current_designation|default:'N/A' }}</span>
+                            </div>
+
+                            <div class="list-details">
+                                <div class="list-detail-row">
+                                    <span><i class="fas fa-graduation-cap"></i> {{ item.alumni.academic_association }}</span>
+                                    <span><i class="fas fa-calendar"></i> Class of {{ item.alumni.joining_year_ug }}</span>
+                                    <span><i class="fas fa-stethoscope"></i> {{ item.alumni.specialty|default:'N/A' }}</span>
+                                </div>
+                                <div class="list-detail-row">
+                                    <span><i class="fas fa-map-marker-alt"></i> {{ item.alumni.city }}, {{ item.alumni.country }}</span>
+                                    <span><i class="fas fa-hospital"></i> {{ item.alumni.current_work_association|default:'N/A' }}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="list-actions">
+                            <a href="{% url 'alumni:alumni_detail_page' item.alumni.id %}" class="list-btn primary">
+                                <i class="fas fa-eye"></i>
+                                <span>View</span>
+                            </a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+            {% else %}
+                <div class="empty-directory-state">
+                    {% if has_search_params %}
+                        <div class="empty-icon">
+                            <i class="fas fa-search-minus"></i>
+                        </div>
+                        <h3>No Alumni Found</h3>
+                        <p>We couldn't find any alumni matching your search criteria.</p>
+                        <div class="empty-suggestions">
+                            <h5>Try:</h5>
+                            <ul>
+                                <li>Using fewer search terms</li>
+                                <li>Checking your spelling</li>
+                                <li>Using more general keywords</li>
+                            </ul>
+                        </div>
+                        <a href="{% url 'alumni:directory' %}" class="empty-btn">
+                            <i class="fas fa-sync-alt"></i>
+                            <span>Clear Search and Browse All</span>
+                        </a>
+                    {% else %}
+                        <div class="empty-icon">
+                            <i class="fas fa-search"></i>
+                        </div>
+                        <h3>Search to Discover Alumni</h3>
+                        <p>Use the search filters above to find fellow graduates from the UCMS family.</p>
+                        <div class="search-suggestions">
+                            <button type="button" class="suggestion-btn" onclick="quickSearch('name', 'Dr.')">
+                                <i class="fas fa-user-md"></i> Search Doctors
+                            </button>
+                            <button type="button" class="suggestion-btn" onclick="quickSearch('location', 'Delhi')">
+                                <i class="fas fa-map-marker-alt"></i> Delhi Alumni
+                            </button>
+                            <button type="button" class="suggestion-btn" onclick="quickSearch('specialization', 'Surgery')">
+                                <i class="fas fa-cut"></i> Surgeons
+                            </button>
+                        </div>
+                    {% endif %}
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// We don't need the modal functionality anymore, so the JS can be simplified.
+document.addEventListener('DOMContentLoaded', function() {
+    initializeDirectory();
+    initializeAOS();
+});
+
+function initializeDirectory() {
+    // Initialize view toggle
+    const viewButtons = document.querySelectorAll('.view-btn');
+    viewButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const view = btn.dataset.view;
+            switchView(view);
+        });
+    });
+}
+
+function initializeAOS() {
+    if (typeof AOS !== 'undefined') {
+        AOS.init({
+            duration: 600,
+            easing: 'ease-out-cubic',
+            once: true,
+            offset: 50
+        });
+    }
+}
+
+function toggleDirectorySearch() {
+    const searchPanel = document.getElementById('directorySearchPanel');
+    const toggleBtn = document.querySelector('.search-toggle i');
+    
+    if (searchPanel.style.display === 'none' || !searchPanel.style.display) {
+        searchPanel.style.display = 'block';
+        searchPanel.style.animation = 'slideDown 0.4s ease-out';
+        toggleBtn.style.transform = 'rotate(180deg)';
+    } else {
+        searchPanel.style.animation = 'slideUp 0.4s ease-out';
+        setTimeout(() => {
+            searchPanel.style.display = 'none';
+            toggleBtn.style.transform = 'rotate(0deg)';
+        }, 400);
+    }
+}
+
+function switchView(viewType) {
+    const gridView = document.getElementById('gridView');
+    const listView = document.getElementById('listView');
+    const viewButtons = document.querySelectorAll('.view-btn');
+    
+    viewButtons.forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.view === viewType);
+    });
+    
+    if (viewType === 'grid') {
+        gridView.style.display = 'grid';
+        listView.style.display = 'none';
+        gridView.style.animation = 'fadeIn 0.5s ease-out';
+    } else {
+        gridView.style.display = 'none';
+        listView.style.display = 'block';
+        listView.style.animation = 'fadeIn 0.5s ease-out';
+    }
+}
+
+function quickSearch(field, value) {
+    const form = document.getElementById('directorySearchForm');
+    const input = form.querySelector(`[name="${field}"]`);
+    if (input) {
+        input.value = value;
+        form.submit();
+    }
+}
+
+function toggleFavorite(alumniId) {
+    const button = event.target.closest('.favorite');
+    const icon = button.querySelector('i');
+    
+    if (icon.classList.contains('far')) {
+        icon.classList.remove('far');
+        icon.classList.add('fas');
+        button.style.color = '#e74c3c';
+    } else {
+        icon.classList.remove('fas');
+        icon.classList.add('far');
+        button.style.color = '';
+    }
+}
+
+// Debounce utility
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+const directoryAnimations = `
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+@keyframes slideDown {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+@keyframes slideUp {
+    from { opacity: 1; transform: translateY(0); }
+    to { opacity: 0; transform: translateY(-20px); }
+}
+`;
+
+if (!document.getElementById('directory-animations')) {
+    const style = document.createElement('style');
+    style.id = 'directory-animations';
+    style.textContent = directoryAnimations;
+    document.head.appendChild(style);
+}
+</script>
+{% endblock %}

@@ -16,10 +16,14 @@ DEBUG = os.getenv("DEBUG", "False") == "True"
 SECRET_KEY = os.getenv("SECRET_KEY", "change-this-in-prod")
 
 # Include DO wildcard so app works before you know the exact URL
-ALLOWED_HOSTS = os.getenv(
-    "ALLOWED_HOSTS",
-    "localhost,127.0.0.1,ucmsalumni.com,www.ucmsalumni.com,.ondigitalocean.app"
-).split(",")
+ALLOWED_HOSTS = [
+    host.strip() for host in os.getenv(
+        "ALLOWED_HOSTS",
+        "localhost,127.0.0.1,ucmsalumni.com,www.ucmsalumni.com,.ondigitalocean.app"
+    ).split(",")
+    if host.strip()
+]
+
 
 # App Platform / reverse proxy headers
 USE_X_FORWARDED_HOST = True
@@ -112,7 +116,7 @@ STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
 # If you DO NOT have a 'static' folder in your repo, comment the next line.
-STATICFILES_DIRS = [BASE_DIR / "static"]
+# STATICFILES_DIRS = [BASE_DIR / "static"]
 
 # WhiteNoise: hashed, compressed static files
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"

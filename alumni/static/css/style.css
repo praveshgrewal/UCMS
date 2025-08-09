@@ -94,8 +94,9 @@ body {
 /* Login Page Styles */
 .login-container {
     min-height: 100vh;
-   background: linear-gradient(rgba(44, 62, 80, 0.4), rgba(44, 62, 80, 0.4)), 
-            url('../images/campus-bg.png') center/cover;
+   background:
+    linear-gradient(rgba(44,62,80,.4), rgba(44,62,80,.4)),
+    url("../images/campus-bg.png") center/cover no-repeat;
 
     background-attachment: fixed;
     position: relative;

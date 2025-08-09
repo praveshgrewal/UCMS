@@ -17,6 +17,13 @@ from .utils import send_sms_otp, send_email_otp, verify_otp, check_existing_alum
 
 from django.utils import timezone
 
+def is_admin(user):
+    # staff OR listed in AdminUser table
+    return user.is_superuser or user.is_staff or AdminUser.objects.filter(user=user).exists()
+
+def is_super_admin(user):
+    # true for Django superuser OR our custom super_admin flag
+    return user.is_superuser or AdminUser.objects.filter(user=user, is_super_admin=True).exists()
 
 
 def login_view(request):
@@ -312,43 +319,38 @@ def admin_login_view(request):
 
 @login_required
 def admin_panel_view(request):
-    if not request.user.is_staff:
+    if not is_admin(request.user):
         messages.error(request, 'Access denied')
         return redirect('alumni:login')
 
-    # Optional: restrict features based on user role
-    if request.user.is_superuser:
-        pending_requests = Alumni.objects.filter(status='pending')
-    else:
-        pending_requests = Alumni.objects.none()
+    # Everyone with admin access can SEE pending
+    pending_requests = Alumni.objects.filter(status='pending')
 
     approved_alumni = Alumni.objects.filter(status='approved')
-    
+
     return render(request, 'alumni/admin_panel.html', {
         'pending_requests': pending_requests,
-        'approved_alumni': approved_alumni
+        'approved_alumni': approved_alumni,
+        'can_take_actions': is_super_admin(request.user),  # use in template to show/hide buttons
     })
+
 
 
 @login_required
 def admin_review_view(request, alumni_id):
-    """Admin review individual alumni request"""
-    if not request.user.is_superuser:
+    if not is_admin(request.user):
         messages.error(request, 'Access denied')
         return redirect('alumni:login')
-    
     alumni = get_object_or_404(Alumni, id=alumni_id)
     return render(request, 'alumni/admin_review.html', {'alumni': alumni})
 
 @login_required
 def admin_action_view(request, alumni_id, action):
-    """Admin action on alumni request (approve/reject/delete)"""
-    if not request.user.is_superuser:
+    if not is_super_admin(request.user):
         messages.error(request, 'Access denied')
         return redirect('alumni:login')
-    
+
     alumni = get_object_or_404(Alumni, id=alumni_id)
-    
     if action == 'approve':
         alumni.status = 'approved'
         alumni.is_verified = True
@@ -361,8 +363,8 @@ def admin_action_view(request, alumni_id, action):
     elif action == 'delete':
         alumni.delete()
         messages.success(request, 'Alumni record deleted')
-    
     return redirect('alumni:admin_panel')
+
 
 
 

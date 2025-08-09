@@ -21,3 +21,6 @@ requests==2.32.3
 
 # Mailtrap API client for sending emails
 mailtrap==2.0.1
+
+# Pillow
+Pillow==10.4.0

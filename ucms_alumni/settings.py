@@ -14,9 +14,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 DEBUG = os.getenv("DEBUG", "False") == "True"
 SECRET_KEY = os.getenv("SECRET_KEY", "change-this-in-prod")
+
+# Include DO wildcard so app works before you know the exact URL
 ALLOWED_HOSTS = os.getenv(
     "ALLOWED_HOSTS",
-    "localhost,127.0.0.1,ucmsalumni.com,www.ucmsalumni.com"
+    "localhost,127.0.0.1,ucmsalumni.com,www.ucmsalumni.com,.ondigitalocean.app"
 ).split(",")
 
 # App Platform / reverse proxy headers
@@ -34,7 +36,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
 
-    # Static files middleware helper
+    # Static files helper for runserver (and needed by WhiteNoise)
     "whitenoise.runserver_nostatic",
 
     # your app(s)
@@ -76,7 +78,7 @@ TEMPLATES = [
 WSGI_APPLICATION = "ucms_alumni.wsgi.application"
 
 # ---------------------------------------------------------------------
-# Database (use DO Managed Postgres via DATABASE_URL; SQLite locally)
+# Database (Postgres via DATABASE_URL in prod; SQLite locally)
 # ---------------------------------------------------------------------
 DATABASES = {
     "default": dj_database_url.parse(
@@ -108,7 +110,8 @@ USE_TZ = True
 # ---------------------------------------------------------------------
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
-# Keep if you have a local /static folder (safe to leave)
+
+# If you DO NOT have a 'static' folder in your repo, comment the next line.
 STATICFILES_DIRS = [BASE_DIR / "static"]
 
 # WhiteNoise: hashed, compressed static files
@@ -148,13 +151,14 @@ CSRF_TRUSTED_ORIGINS = list(filter(None, [
     "https://*.ondigitalocean.app",
     "https://ucmsalumni.com",
     "https://www.ucmsalumni.com",
-    os.getenv("EXTRA_CSRF_ORIGIN", "").strip(),  # optional extra, comma-splitting is not needed here
+    os.getenv("EXTRA_CSRF_ORIGIN", "").strip(),
 ]))
 
 # ---------------------------------------------------------------------
-# Email (fill these as env vars in App Platform)
+# Email (you use Mailtrap API; SMTP vars optional/unused)
 # ---------------------------------------------------------------------
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "hello@ucmsalumni.com")
+# Optional SMTP (not needed if you only use Mailtrap API)
 EMAIL_HOST = os.getenv("EMAIL_HOST", "")
 EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
 EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
@@ -163,18 +167,16 @@ EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "True") == "True"
 EMAIL_USE_SSL = os.getenv("EMAIL_USE_SSL", "False") == "True"
 
 # ---------------------------------------------------------------------
-# App constants / OTP
+# App constants / OTP & provider keys (used in utils.py)
 # ---------------------------------------------------------------------
 OTP_EXPIRY_MINUTES = int(os.getenv("OTP_EXPIRY_MINUTES", "5"))
+MAILTRAP_API_KEY = os.getenv("MAILTRAP_API_KEY", "")
+TWO_FACTOR_API_KEY = os.getenv("TWO_FACTOR_API_KEY", "")
+
+
 
 # ---------------------------------------------------------------------
-# Third-party API keys (set these in App Platform → Encrypted)
-# ---------------------------------------------------------------------
-THIRDPARTY_A_API_KEY = os.getenv("THIRDPARTY_A_API_KEY", "")
-THIRDPARTY_B_API_KEY = os.getenv("THIRDPARTY_B_API_KEY", "")
-
-# ---------------------------------------------------------------------
-# Logging (send everything to console for App Platform logs)
+# Logging (to App Platform logs)
 # ---------------------------------------------------------------------
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 LOGGING = {
@@ -183,10 +185,7 @@ LOGGING = {
     "handlers": {
         "console": {"class": "logging.StreamHandler"},
     },
-    "root": {
-        "handlers": ["console"],
-        "level": LOG_LEVEL,
-    },
+    "root": {"handlers": ["console"], "level": LOG_LEVEL},
     "loggers": {
         "django": {"handlers": ["console"], "level": LOG_LEVEL, "propagate": True},
         "django.request": {"handlers": ["console"], "level": "WARNING", "propagate": False},

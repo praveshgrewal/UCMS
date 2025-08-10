@@ -14,6 +14,7 @@ from .forms import (
     AdminLoginForm, AlumniFilterForm
 )
 from .utils import send_sms_otp, send_email_otp, verify_otp, check_existing_alumni
+from .views import is_admin, is_super_admin 
 
 from django.utils import timezone
 
@@ -379,16 +380,11 @@ def admin_review_view(request, alumni_id):
 
 @login_required
 def admin_action_view(request, alumni_id, action):
-    """
-    Use POST only.
-    Admins can approve/reject. Only super admins can delete.
-    Always redirect back to admin panel (never to login).
-    """
     if request.method != 'POST':
         messages.error(request, 'Invalid request method.')
         return redirect('alumni:admin_panel')
 
-    if not is_admin(request.user):
+    if not is_admin(request.user):  # admins allowed for approve/reject/delete
         messages.error(request, 'Access denied')
         return redirect('alumni:admin_panel')
 
@@ -406,9 +402,7 @@ def admin_action_view(request, alumni_id, action):
         messages.success(request, f'Alumni {alumni.name} rejected')
 
     elif action == 'delete':
-        if not is_super_admin(request.user):
-            messages.error(request, 'Only super admins can delete records.')
-            return redirect('alumni:admin_panel')
+        # If you want only super admins to delete, switch to: if not is_super_admin(request.user): ...
         alumni.delete()
         messages.success(request, 'Alumni record deleted')
 

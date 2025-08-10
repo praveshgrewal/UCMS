@@ -20,8 +20,7 @@ urlpatterns = [
     path('directory/', views.directory_view, name='directory'),
     path('profile/', views.profile_view, name='profile'),
     path('edit-profile/', views.edit_profile_view, name='edit_profile'),
-    path('admin-search/', views.admin_search_view, name='admin_search'),
-
+path('admin-search/', views.admin_search_view, name='admin_search'),
 
        # URL for the dedicated alumni profile page
     path('alumni-profile/<int:alumni_id>/', views.alumni_detail_page_view, name='alumni_detail_page'),

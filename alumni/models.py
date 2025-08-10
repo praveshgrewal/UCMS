@@ -2,6 +2,15 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.core.validators import RegexValidator
 
+
+# New: canonical choices used by forms & admin
+ACADEMIC_ASSOC_CHOICES = [
+    ('UG', 'UG'),
+    ('PG', 'PG'),
+    ('UG_PG', 'UG and PG'),
+]
+
+
 class Alumni(models.Model):
     STATUS_CHOICES = [
         ('pending', 'Pending'),
@@ -16,8 +25,12 @@ class Alumni(models.Model):
     email = models.EmailField()
     
     # Academic Information
-    academic_association = models.CharField(max_length=200)
-    joining_year_ug = models.IntegerField()
+    academic_association = models.CharField(
+        max_length=10,
+        choices=ACADEMIC_ASSOC_CHOICES
+    )
+    # Make UG optional so "PG only" is possible
+    joining_year_ug = models.IntegerField(null=True, blank=True)
     joining_year_pg = models.IntegerField(null=True, blank=True)
     specialty = models.CharField(max_length=200)
     
@@ -32,7 +45,10 @@ class Alumni(models.Model):
     associated_hospital = models.CharField(max_length=200)
     
     # Contact Information
-    phone_regex = RegexValidator(regex=r'^\+?1?\d{9,15}$', message="Phone number must be entered in the format: '+999999999'. Up to 15 digits allowed.")
+    phone_regex = RegexValidator(
+        regex=r'^\+?1?\d{9,15}$',
+        message="Phone number must be entered in the format: '+999999999'. Up to 15 digits allowed."
+    )
     contact_number = models.CharField(validators=[phone_regex], max_length=17)
     alternate_contact = models.CharField(validators=[phone_regex], max_length=17, null=True, blank=True)
     

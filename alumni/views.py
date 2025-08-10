@@ -410,15 +410,12 @@ def admin_review_view(request, alumni_id):
 
 @login_required
 def admin_action_view(request, alumni_id, action):
-    # It's better practice to handle actions via POST to prevent accidental changes
     if request.method != 'POST':
-        messages.error(request, 'Invalid request method. Please use the provided buttons.')
+        messages.error(request, 'Invalid request method.')
         return redirect('alumni:admin_panel')
 
-    # You should have a way to check if the user is an admin
-    # For example, checking if they are a superuser
-    if not request.user.is_superuser:
-        messages.error(request, 'You do not have permission to perform this action.')
+    if not is_admin(request.user):
+        messages.error(request, 'Access denied')
         return redirect('alumni:admin_panel')
 
     alumni = get_object_or_404(Alumni, id=alumni_id)
@@ -427,23 +424,23 @@ def admin_action_view(request, alumni_id, action):
         alumni.status = 'approved'
         alumni.is_verified = True
         alumni.save()
-        messages.success(request, f"Alumni '{alumni.name}' has been approved successfully.")
+        messages.success(request, f'Alumni {alumni.name} approved successfully')
 
     elif action == 'reject':
         alumni.status = 'rejected'
         alumni.save()
-        messages.success(request, f"Alumni '{alumni.name}' has been rejected.")
+        messages.success(request, f'Alumni {alumni.name} rejected')
 
     elif action == 'delete':
-        alumni_name = alumni.name
         alumni.delete()
-        messages.success(request, f"Alumni record for '{alumni_name}' has been deleted.")
+        messages.success(request, 'Alumni record deleted')
 
     else:
-        messages.error(request, 'Invalid action specified.')
+        messages.error(request, 'Invalid action')
 
     return redirect('alumni:admin_panel')
-# ### END: BADLAV YAHAN KHATAM HUA ###
+
+
 
 @login_required
 def admin_search_view(request):

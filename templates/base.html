@@ -73,8 +73,8 @@
     
     {% block extra_js %}{% endblock %}
 
-    {% if not user.is_superuser %}
-    <script>
+<!--     {% if not user.is_superuser %} -->
+<!--     <script>
       // Disable PrintScreen key
       document.addEventListener("keyup", function (e) {
         if (e.key === "PrintScreen") {
@@ -104,7 +104,7 @@
         }
       });
     </script>
-    {% endif %}
+    {% endif %} -->
     
 </body>
 </html>

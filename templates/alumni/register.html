@@ -69,37 +69,45 @@
                     </div>
                   </div>
                 </div>
+<!-- Academic Details -->
+<div class="form-section">
+  <h4 class="section-title">
+    <i class="fas fa-book"></i>
+    Academic Details
+  </h4>
 
-                <!-- Academic Details -->
-                <div class="form-section">
-                  <h4 class="section-title">
-                    <i class="fas fa-book"></i>
-                    Academic Details
-                  </h4>
-                  <div class="form-row">
-                    <div class="form-group" id="group-joining-ug">
-                      <label class="modern-label">Joining Year UG</label>
-                      <div class="input-container">
-                        {{ form.joining_year_ug }}
-                        <i class="fas fa-calendar input-icon"></i>
-                      </div>
-                    </div>
-                    <div class="form-group" id="group-joining-pg">
-                      <label class="modern-label">Joining Year PG</label>
-                      <div class="input-container">
-                        {{ form.joining_year_pg }}
-                        <i class="fas fa-calendar-alt input-icon"></i>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="form-group">
-                    <label class="modern-label">Specialty</label>
-                    <div class="input-container">
-                      {{ form.specialty }}
-                      <i class="fas fa-stethoscope input-icon"></i>
-                    </div>
-                  </div>
-                </div>
+  <div class="form-row">
+    <div class="form-group" id="group-joining-ug">
+      <label class="modern-label">Joining Year UG</label>
+      <div class="input-container" style="position:relative;">
+        {{ form.joining_year_ug }}
+        <i class="fas fa-calendar input-icon"
+           style="pointer-events:none; position:absolute; left:12px; top:50%; transform:translateY(-50%);"
+           aria-hidden="true"></i>
+      </div>
+    </div>
+
+    <div class="form-group" id="group-joining-pg">
+      <label class="modern-label">Joining Year PG</label>
+      <div class="input-container" style="position:relative;">
+        {{ form.joining_year_pg }}
+        <i class="fas fa-calendar-alt input-icon"
+           style="pointer-events:none; position:absolute; left:12px; top:50%; transform:translateY(-50%);"
+           aria-hidden="true"></i>
+      </div>
+    </div>
+  </div>
+
+  <div class="form-group">
+    <label class="modern-label">Specialty</label>
+    <div class="input-container" style="position:relative;">
+      {{ form.specialty }}
+      <i class="fas fa-stethoscope input-icon"
+         style="pointer-events:none; position:absolute; left:12px; top:50%; transform:translateY(-50%);"
+         aria-hidden="true"></i>
+    </div>
+  </div>
+</div>
 
                 <!-- Location -->
                 <div class="form-section">

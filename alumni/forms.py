@@ -61,11 +61,14 @@ class AlumniRegistrationForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # year choices: 1950..current year
-        current_year = datetime.datetime.now().year
-        years = [('', 'Select Year')] + [(y, y) for y in range(1950, current_year + 1)]
-        self.fields['joining_year_ug'].choices = years
-        self.fields['joining_year_pg'].choices = years
+
+        import datetime
+        current_year = datetime.date.today().year
+        years = [(y, y) for y in range(1950, current_year + 1)]
+
+        # ✅ bind choices to the fields
+        self.fields['joining_year_ug'].choices = [('', 'Select Year')] + years
+        self.fields['joining_year_pg'].choices = [('', 'Select Year')] + years
 
         # Start with UG required; we'll enforce proper required-ness in clean()
         self.fields['joining_year_ug'].required = False

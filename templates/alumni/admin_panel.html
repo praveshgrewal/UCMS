@@ -363,14 +363,17 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="alumni-actions">
-                             <button type="button" class="action-btn edit" onclick="editAlumni({{ alumni.id }})">
-                                 <i class="fas fa-edit"></i><span>Edit</span>
-                             </button>
-                             <button type="button" class="action-btn remove" onclick="confirmRemove({{ alumni.id }})">
-                                 <i class="fas fa-trash-alt"></i><span>Remove</span>
-                             </button>
-                        </div>
+                                     <div class="alumni-actions d-flex gap-3 mt-3">
+  <button type="button" class="btn btn-outline-primary d-flex align-items-center gap-2 shadow-sm px-3" onclick="editAlumni({{ alumni.id }})">
+    <i class="fas fa-edit"></i>
+    <span>Edit</span>
+  </button>
+
+  <button type="button" class="btn btn-outline-danger d-flex align-items-center gap-2 shadow-sm px-3" onclick="confirmRemove({{ alumni.id }})">
+    <i class="fas fa-trash-alt"></i>
+    <span>Remove</span>
+  </button>
+</div>
                     </div>
                     {% endfor %}
                 </div>

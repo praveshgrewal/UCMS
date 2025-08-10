@@ -34,7 +34,7 @@ urlpatterns = [
     path('admin-panel/', views.admin_panel_view, name='admin_panel'),
     path('admin-review/<int:alumni_id>/', views.admin_review_view, name='admin_review'),
     
-       path('admin-action/<int:alumni_id>/<str:action>/', views.admin_action_view, name='admin_action'),
+    path('admin-action/<int:alumni_id>/<str:action>/', views.admin_action_view, name='admin_action'),
 
 
     

@@ -33,7 +33,11 @@ urlpatterns = [
     path('admin-login/', views.admin_login_view, name='admin_login'),
     path('admin-panel/', views.admin_panel_view, name='admin_panel'),
     path('admin-review/<int:alumni_id>/', views.admin_review_view, name='admin_review'),
-    path('admin-action/<int:alumni_id>/<str:action>/', views.admin_action_view, name='admin_action'),
+    
+       path('admin-action/<int:alumni_id>/<str:action>/', views.admin_action_view, name='admin_action'),
+
+
+    
     path('admin-logout/', views.admin_logout_view, name='admin_logout'),
     path('admin-edit/<int:alumni_id>/', views.admin_edit_alumni_view, name='admin_edit_alumni'),
   path('admin-search/', views.admin_search_view, name='admin_search'),

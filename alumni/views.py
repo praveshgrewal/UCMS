@@ -443,17 +443,15 @@ def admin_action_view(request, alumni_id, action):
 
 
 
-
 @login_required
-def admin_alumni_search_view(request):
+def admin_search_view(request):
     """
-    Handles live search requests from the admin panel and returns JSON data.
+    Handles the live search AJAX request from the admin dashboard
+    and returns a JSON response.
     """
-    if not request.user.is_superuser:
-        return JsonResponse({'error': 'Access Denied'}, status=403)
+    # Start with all approved alumni
+    alumni_queryset = Alumni.objects.filter(status='approved')
 
-    alumni_list = Alumni.objects.filter(status='approved')
-    
     # Get search parameters from the request
     name = request.GET.get('name', '')
     joining_year = request.GET.get('joining_year', '')
@@ -462,27 +460,39 @@ def admin_alumni_search_view(request):
     location = request.GET.get('location', '')
     designation = request.GET.get('designation', '')
 
-    # Apply filters
+    # Apply filters if parameters are provided
     if name:
-        alumni_list = alumni_list.filter(name__icontains=name)
+        alumni_queryset = alumni_queryset.filter(name__icontains=name)
+    
     if joining_year:
-        alumni_list = alumni_list.filter(Q(joining_year_ug=joining_year) | Q(joining_year_pg=joining_year))
+        # Check both UG and PG joining years
+        alumni_queryset = alumni_queryset.filter(
+            Q(joining_year_ug=joining_year) | Q(joining_year_pg=joining_year)
+        )
+        
     if work_association:
-        alumni_list = alumni_list.filter(current_work_association__icontains=work_association)
+        alumni_queryset = alumni_queryset.filter(current_work_association__icontains=work_association)
+        
     if specialization:
-        alumni_list = alumni_list.filter(specialty__icontains=specialization)
+        alumni_queryset = alumni_queryset.filter(specialty__icontains=specialization)
+        
     if location:
-        alumni_list = alumni_list.filter(Q(city__icontains=location) | Q(country__icontains=location))
+        # Search across city, state, and country
+        alumni_queryset = alumni_queryset.filter(
+            Q(city__icontains=location) | Q(state__icontains=location) | Q(country__icontains=location)
+        )
+        
     if designation:
-        alumni_list = alumni_list.filter(current_designation__icontains=designation)
+        alumni_queryset = alumni_queryset.filter(current_designation__icontains=designation)
 
-    # Prepare data for JSON response
-    data = []
-    for alumni in alumni_list:
-        data.append({
+    # Prepare the data for JSON response
+    # This format matches what your JavaScript expects
+    alumni_data = []
+    for alumni in alumni_queryset:
+        alumni_data.append({
             'id': alumni.id,
             'name': alumni.name,
-            'photo_url': alumni.photo.url if alumni.photo else '',
+            'photo_url': alumni.photo.url if alumni.photo else None,
             'academic_association': alumni.academic_association,
             'joining_year_ug': alumni.joining_year_ug,
             'joining_year_pg': alumni.joining_year_pg,
@@ -492,10 +502,8 @@ def admin_alumni_search_view(request):
             'current_designation': alumni.current_designation or 'N/A',
             'current_work_association': alumni.current_work_association or 'N/A',
         })
-        
-    return JsonResponse({'alumni': data})
 
-
+    return JsonResponse({'alumni': alumni_data})
 
 
 

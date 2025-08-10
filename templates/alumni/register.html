@@ -69,47 +69,39 @@
                     </div>
                   </div>
                 </div>
-                <!-- Academic Details -->
-                <div class="form-section">
-                  <h4 class="section-title">
-                    <i class="fas fa-book"></i>
-                    Academic Details
-                  </h4>
+<!-- Academic Details -->
+<div class="form-section">
+  <h4 class="section-title">
+    <i class="fas fa-book"></i>
+    Academic Details
+  </h4>
 
-                  <div class="form-row">
-                    <!-- ### START: YAHAN BADLAV KIYA GAYA HAI ### -->
-                    <div class="form-group" id="group-joining-ug">
-                      <label class="modern-label" for="id_joining_year_ug">Joining Year UG</label>
-                      <div class="input-container">
-                        <!-- Django ke form field ki jagah manual HTML select box dala gaya hai -->
-                        <select name="joining_year_ug" id="id_joining_year_ug" class="form-select">
-                          <!-- Options will be added by JavaScript -->
-                        </select>
-                        <i class="fas fa-calendar input-icon" aria-hidden="true"></i>
-                      </div>
-                    </div>
+  <div class="form-row">
+    <div class="form-group" id="group-joining-ug">
+      <label class="modern-label" for="{{ form.joining_year_ug.id_for_label }}">Joining Year UG</label>
+      <div class="input-container">
+        {{ form.joining_year_ug }}
+        <i class="fas fa-calendar input-icon" aria-hidden="true"></i>
+      </div>
+    </div>
 
-                    <div class="form-group" id="group-joining-pg">
-                      <label class="modern-label" for="id_joining_year_pg">Joining Year PG</label>
-                      <div class="input-container">
-                        <!-- Django ke form field ki jagah manual HTML select box dala gaya hai -->
-                        <select name="joining_year_pg" id="id_joining_year_pg" class="form-select">
-                            <!-- Options will be added by JavaScript -->
-                        </select>
-                        <i class="fas fa-calendar-alt input-icon" aria-hidden="true"></i>
-                      </div>
-                    </div>
-                    <!-- ### END: BADLAV YAHAN KHATAM HUA ### -->
-                  </div>
+    <div class="form-group" id="group-joining-pg">
+      <label class="modern-label" for="{{ form.joining_year_pg.id_for_label }}">Joining Year PG</label>
+      <div class="input-container">
+        {{ form.joining_year_pg }}
+        <i class="fas fa-calendar-alt input-icon" aria-hidden="true"></i>
+      </div>
+    </div>
+  </div>
 
-                  <div class="form-group">
-                    <label class="modern-label">Specialty</label>
-                    <div class="input-container">
-                      {{ form.specialty }}
-                      <i class="fas fa-stethoscope input-icon" aria-hidden="true"></i>
-                    </div>
-                  </div>
-                </div>
+  <div class="form-group">
+    <label class="modern-label">Specialty</label>
+    <div class="input-container">
+      {{ form.specialty }}
+      <i class="fas fa-stethoscope input-icon" aria-hidden="true"></i>
+    </div>
+  </div>
+</div>
 
                 <!-- Location -->
                 <div class="form-section">
@@ -332,17 +324,9 @@ function toggleYearFields() {
   ug.style.display = 'none';
   pg.style.display = 'none';
 
-  const selectedValue = assoc.value;
-
-  // Aapke forms.py ke 'choices' se match karein
-  if (selectedValue === 'UG') {
-      ug.style.display = 'block';
-  } else if (selectedValue === 'PG') {
-      pg.style.display = 'block';
-  } else if (selectedValue === 'UG_PG') {
-      ug.style.display = 'block';
-      pg.style.display = 'block';
-  }
+  if (assoc.value === 'UG') ug.style.display = '';
+  else if (assoc.value === 'PG') pg.style.display = '';
+  else if (assoc.value === 'UG_PG') { ug.style.display = ''; pg.style.display = ''; }
 }
 
 function displayFormErrors(errors, form) {
@@ -359,23 +343,6 @@ function displayFormErrors(errors, form) {
 
 /* ------------ page init ------------ */
 document.addEventListener('DOMContentLoaded', function () {
-
-  // ### START: YAHAN BADLAV KIYA GAYA HAI ###
-  // Saal ke options ko JavaScript se add karein
-  const ugSelect = document.getElementById('id_joining_year_ug');
-  const pgSelect = document.getElementById('id_joining_year_pg');
-
-  const currentYear = new Date().getFullYear();
-  let optionsHtml = '<option value="" selected>Select Year</option>';
-  for (let year = currentYear; year >= 1950; year--) {
-      optionsHtml += `<option value="${year}">${year}</option>`;
-  }
-
-  if(ugSelect) ugSelect.innerHTML = optionsHtml;
-  if(pgSelect) pgSelect.innerHTML = optionsHtml;
-  // ### END: BADLAV YAHAN KHATAM HUA ###
-
-
   // if those utilities exist, call them; otherwise ignore
   if (typeof initializeScreenshotProtection === 'function') initializeScreenshotProtection();
   if (typeof initializeDirectorySearch === 'function') initializeDirectorySearch();
@@ -388,7 +355,7 @@ document.addEventListener('DOMContentLoaded', function () {
   const assoc = document.querySelector('[name="academic_association"]');
   if (assoc) {
     assoc.addEventListener('change', toggleYearFields);
-    toggleYearFields(); // Page load par bhi run karein
+    toggleYearFields();
   }
 
   // AJAX submit for Step 1

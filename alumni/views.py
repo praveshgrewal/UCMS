@@ -18,13 +18,13 @@ from .utils import send_sms_otp, send_email_otp, verify_otp, check_existing_alum
 
 from django.utils import timezone
 
+# keep these helpers at top of alumni/views.py
 def is_admin(user):
-    # staff OR listed in AdminUser table
     return user.is_superuser or user.is_staff or AdminUser.objects.filter(user=user).exists()
 
 def is_super_admin(user):
-    # true for Django superuser OR our custom super_admin flag
     return user.is_superuser or AdminUser.objects.filter(user=user, is_super_admin=True).exists()
+
 
 
 def login_view(request):
@@ -380,12 +380,10 @@ def admin_review_view(request, alumni_id):
 
 @login_required
 def admin_action_view(request, alumni_id, action):
-    # Only allow POST to avoid accidental/CSRF actions
     if request.method != 'POST':
         messages.error(request, 'Invalid request method.')
         return redirect('alumni:admin_panel')
 
-    # Allow any admin (staff or in AdminUser) to act
     if not is_admin(request.user):
         messages.error(request, 'Access denied')
         return redirect('alumni:admin_panel')
@@ -404,7 +402,6 @@ def admin_action_view(request, alumni_id, action):
         messages.success(request, f'Alumni {alumni.name} rejected')
 
     elif action == 'delete':
-        # If you want only super admins to delete, change guard here to: if not is_super_admin(request.user): ...
         alumni.delete()
         messages.success(request, 'Alumni record deleted')
 
@@ -412,6 +409,7 @@ def admin_action_view(request, alumni_id, action):
         messages.error(request, 'Invalid action')
 
     return redirect('alumni:admin_panel')
+
 
 
 
@@ -522,15 +520,13 @@ def get_alumni_details_view(request, alumni_id):
 
 @login_required
 def admin_edit_alumni_view(request, alumni_id):
-    """Admin can edit an alumni's profile."""
-    if not request.user.is_superuser:
+    if not is_admin(request.user):
         messages.error(request, "You do not have permission to perform this action.")
-        return redirect('alumni:admin_login')
+        return redirect('alumni:admin_panel')
 
     alumnus = get_object_or_404(Alumni, id=alumni_id)
 
     if request.method == 'POST':
-        # Use the same registration form to edit
         form = AlumniRegistrationForm(request.POST, request.FILES, instance=alumnus)
         if form.is_valid():
             form.save()
@@ -539,14 +535,10 @@ def admin_edit_alumni_view(request, alumni_id):
         else:
             messages.error(request, "Please correct the errors below.")
     else:
-        # On GET request, show the form with existing data
         form = AlumniRegistrationForm(instance=alumnus)
 
-    context = {
-        'form': form,
-        'alumnus': alumnus
-    }
-    return render(request, 'alumni/admin_edit_alumni.html', context)
+    return render(request, 'alumni/admin_edit_alumni.html', {'form': form, 'alumnus': alumnus})
+
 
 
 def logout_view(request):

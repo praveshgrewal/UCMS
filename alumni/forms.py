@@ -1,9 +1,10 @@
-# forms.py
+# alumni/forms.py
 from django import forms
 from .models import Alumni
 import datetime
 
 
+# Yeh form waise ka waisa hi hai
 class AlumniLoginForm(forms.Form):
     contact = forms.CharField(
         max_length=100,
@@ -15,6 +16,7 @@ class AlumniLoginForm(forms.Form):
     )
 
 
+# Yeh form waise ka waisa hi hai
 class OTPVerificationForm(forms.Form):
     otp = forms.CharField(
         max_length=6,
@@ -27,20 +29,34 @@ class OTPVerificationForm(forms.Form):
     )
 
 
+# ############# START: SIRF IS FORM MEIN BADLAV KIYA GAYA HAI #############
 class AlumniRegistrationForm(forms.ModelForm):
     ACADEMIC_CHOICES = [
+        ('', 'Select Association'),
         ('UG', 'UG'),
         ('PG', 'PG'),
         ('UG_PG', 'UG and PG'),
     ]
 
-    # Keep this as a form ChoiceField so it always posts a valid value
+    # In fields ko alag se define karna sabse zaroori hai
     academic_association = forms.ChoiceField(
         choices=ACADEMIC_CHOICES,
-        widget=forms.Select(attrs={'class': 'form-select', 'required': True})
+        required=True,
+        widget=forms.Select(attrs={'class': 'form-select'})
     )
 
-    # Not a model field – used only for confirmation
+    joining_year_ug = forms.ChoiceField(
+        choices=[], # Choices __init__ mein set honge
+        required=False, # Shuruaat mein optional, clean() mein check hoga
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+    
+    joining_year_pg = forms.ChoiceField(
+        choices=[], # Choices __init__ mein set honge
+        required=False, # Shuruaat mein optional, clean() mein check hoga
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+
     declaration = forms.BooleanField(
         required=True,
         widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
@@ -52,14 +68,12 @@ class AlumniRegistrationForm(forms.ModelForm):
             'photo', 'name', 'academic_association', 'joining_year_ug',
             'joining_year_pg', 'specialty', 'country', 'state', 'city',
             'current_work_association', 'current_designation', 'associated_hospital',
-            'contact_number', 'alternate_contact', 'email'
+            'contact_number', 'alternate_contact', 'email', 'declaration'
         ]
+        # Widgets se joining_year fields hata diye gaye hain kyunki woh upar define ho chuke hain
         widgets = {
             'photo': forms.FileInput(attrs={'class': 'form-control', 'accept': 'image/*'}),
             'name': forms.TextInput(attrs={'class': 'form-control', 'required': True}),
-            # academic_association widget is defined above
-            'joining_year_ug': forms.Select(attrs={'class': 'form-select'}),
-            'joining_year_pg': forms.Select(attrs={'class': 'form-select'}),
             'specialty': forms.TextInput(attrs={'class': 'form-control', 'required': True}),
             'country': forms.TextInput(attrs={'class': 'form-control', 'required': True}),
             'state': forms.TextInput(attrs={'class': 'form-control', 'required': True}),
@@ -74,60 +88,39 @@ class AlumniRegistrationForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
-        # Build year choices (1950..current)
+        
         current_year = datetime.date.today().year
-        years = [(y, y) for y in range(1950, current_year + 1)]
+        # Saal ki list (ulta order mein)
+        years = [(str(y), str(y)) for y in range(current_year, 1949, -1)]
+        year_choices = [('', 'Select Year')] + years
 
-        # Bind choices to fields so the selects are populated
-        self.fields['joining_year_ug'].choices = [('', 'Select Year')] + years
-        self.fields['joining_year_pg'].choices = [('', 'Select Year')] + years
-
-        # Start non-required; we enforce the right ones in clean()
-        self.fields['joining_year_ug'].required = False
-        self.fields['joining_year_pg'].required = False
-
-        # Make sure selects remain clickable and styled
-        self.fields['joining_year_ug'].widget.attrs.update({
-            'class': (self.fields['joining_year_ug'].widget.attrs.get('class', '') + ' form-select').strip(),
-            'data-role': 'year-ug',
-        })
-        self.fields['joining_year_pg'].widget.attrs.update({
-            'class': (self.fields['joining_year_pg'].widget.attrs.get('class', '') + ' form-select').strip(),
-            'data-role': 'year-pg',
-        })
+        # Dono fields ke liye choices set karein
+        self.fields['joining_year_ug'].choices = year_choices
+        self.fields['joining_year_pg'].choices = year_choices
 
     def clean(self):
-        cleaned = super().clean()
-        assoc = cleaned.get('academic_association')
-        ug = cleaned.get('joining_year_ug')
-        pg = cleaned.get('joining_year_pg')
+        cleaned_data = super().clean()
+        assoc = cleaned_data.get('academic_association')
+        ug_year = cleaned_data.get('joining_year_ug')
+        pg_year = cleaned_data.get('joining_year_pg')
 
-        # Normalize empty strings to None (ChoiceField can pass '')
-        if ug in ('', None):
-            ug = None
-            cleaned['joining_year_ug'] = None
-        if pg in ('', None):
-            pg = None
-            cleaned['joining_year_pg'] = None
+        if assoc == 'UG' and not ug_year:
+            self.add_error('joining_year_ug', 'Please select the joining year for UG.')
+        
+        if assoc == 'PG' and not pg_year:
+            self.add_error('joining_year_pg', 'Please select the joining year for PG.')
 
-        if assoc == 'UG':
-            if not ug:
-                self.add_error('joining_year_ug', 'UG year is required.')
-            cleaned['joining_year_pg'] = None
-        elif assoc == 'PG':
-            if not pg:
-                self.add_error('joining_year_pg', 'PG year is required.')
-            cleaned['joining_year_ug'] = None
-        elif assoc == 'UG_PG':
-            if not ug:
-                self.add_error('joining_year_ug', 'UG year is required.')
-            if not pg:
-                self.add_error('joining_year_pg', 'PG year is required.')
+        if assoc == 'UG_PG':
+            if not ug_year:
+                self.add_error('joining_year_ug', 'Please select the joining year for UG.')
+            if not pg_year:
+                self.add_error('joining_year_pg', 'Please select the joining year for PG.')
 
-        return cleaned
+        return cleaned_data
+# ############# END: BADLAV YAHAN KHATAM HUA #############
 
 
+# Yeh form waise ka waisa hi hai
 class AdminLoginForm(forms.Form):
     username = forms.CharField(
         max_length=150,
@@ -146,6 +139,7 @@ class AdminLoginForm(forms.Form):
     )
 
 
+# Yeh form waise ka waisa hi hai
 class AlumniFilterForm(forms.Form):
     name = forms.CharField(
         required=False,

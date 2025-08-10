@@ -173,6 +173,9 @@ body {
         radial-gradient(circle at 80% 80%, rgba(255, 255, 255, 0.05) 0%, transparent 50%),
         radial-gradient(circle at 40% 60%, rgba(255, 255, 255, 0.08) 0%, transparent 50%);
     animation: backgroundMove 20s ease-in-out infinite;
+    /* FIX: don't block clicks */
+    pointer-events: none;
+    z-index: 0;
 }
 
 @keyframes backgroundMove {
@@ -215,6 +218,9 @@ body {
     height: 100%;
     background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
     animation: shimmer 3s infinite;
+    /* FIX: don't block clicks */
+    pointer-events: none;
+    z-index: 0;
 }
 
 @keyframes shimmer {
@@ -522,6 +528,12 @@ body {
 
 .form-control:hover, .form-select:hover {
     border-color: var(--light-blue);
+}
+
+/* Keep selects above decorative overlays */
+.form-select {
+    position: relative;   /* FIX */
+    z-index: 1;           /* FIX */
 }
 
 .form-label {
@@ -849,6 +861,9 @@ body {
     background: linear-gradient(135deg, #667eea, #764ba2);
     transform: scaleX(0);
     transition: transform 0.3s ease;
+    /* FIX: don't block clicks */
+    pointer-events: none;
+    z-index: 0;
 }
 
 .form-section:hover::before {
@@ -916,6 +931,9 @@ body {
     transition: all 0.3s ease;
     background: white;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    /* FIX: keep controls above overlays */
+    position: relative;
+    z-index: 1;
 }
 
 .input-container input:focus,

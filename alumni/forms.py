@@ -104,6 +104,14 @@ class AlumniRegistrationForm(forms.ModelForm):
         ug_year = cleaned_data.get('joining_year_ug')
         pg_year = cleaned_data.get('joining_year_pg')
 
+        # ### START: YAHAN BADLAV KIYA GAYA HAI ###
+        # Agar saal select nahi kiya gaya hai, to uski value None set kar dein
+        if not ug_year:
+            cleaned_data['joining_year_ug'] = None
+        if not pg_year:
+            cleaned_data['joining_year_pg'] = None
+        # ### END: BADLAV YAHAN KHATAM HUA ###
+
         if assoc == 'UG' and not ug_year:
             self.add_error('joining_year_ug', 'Please select the joining year for UG.')
         

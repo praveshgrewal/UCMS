@@ -96,9 +96,12 @@ def verify_otp_view(request):
         'contact': contact
     })
 
-# In your views.py
 
 def register_view(request):
+    """
+    Prevent duplicates: re-use an existing pending record for same email/phone.
+    If already approved, block re-registration.
+    """
     if request.method == 'POST':
         email = (request.POST.get('email') or '').strip()
         phone = (request.POST.get('contact_number') or '').strip()
@@ -333,6 +336,10 @@ def admin_login_view(request):
 
 @login_required
 def admin_panel_view(request):
+    """
+    Show only the LATEST pending request per (email, phone),
+    so duplicate cards don’t appear.
+    """
     if not is_admin(request.user):
         messages.error(request, 'Access denied')
         return redirect('alumni:login')
@@ -352,9 +359,8 @@ def admin_panel_view(request):
     return render(request, 'alumni/admin_panel.html', {
         'pending_requests': unique_pending,
         'approved_alumni': approved_alumni,
-        'can_take_actions': is_super_admin(request.user),
+        'can_take_actions': is_admin(request.user),  # admins can act (see admin_action_view)
     })
-
 
 
 @login_required
@@ -363,10 +369,25 @@ def admin_review_view(request, alumni_id):
         messages.error(request, 'Access denied')
         return redirect('alumni:login')
     alumni = get_object_or_404(Alumni, id=alumni_id)
-    return render(request, 'alumni/admin_review.html', {'alumni': alumni})
+    return render(request, 'alumni/admin_review.html', {
+        'alumni': alumni,
+        'can_take_actions': is_admin(request.user),
+    })
+
+
+
 
 @login_required
 def admin_action_view(request, alumni_id, action):
+    """
+    Use POST only.
+    Admins can approve/reject. Only super admins can delete.
+    Always redirect back to admin panel (never to login).
+    """
+    if request.method != 'POST':
+        messages.error(request, 'Invalid request method.')
+        return redirect('alumni:admin_panel')
+
     if not is_admin(request.user):
         messages.error(request, 'Access denied')
         return redirect('alumni:admin_panel')
@@ -395,7 +416,6 @@ def admin_action_view(request, alumni_id, action):
         messages.error(request, 'Invalid action')
 
     return redirect('alumni:admin_panel')
-
 
 
 

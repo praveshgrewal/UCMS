@@ -20,7 +20,7 @@ urlpatterns = [
     path('directory/', views.directory_view, name='directory'),
     path('profile/', views.profile_view, name='profile'),
     path('edit-profile/', views.edit_profile_view, name='edit_profile'),
-path('admin-search/', views.admin_search_view, name='admin_search'),
+
 
        # URL for the dedicated alumni profile page
     path('alumni-profile/<int:alumni_id>/', views.alumni_detail_page_view, name='alumni_detail_page'),
@@ -36,6 +36,6 @@ path('admin-search/', views.admin_search_view, name='admin_search'),
     path('admin-action/<int:alumni_id>/<str:action>/', views.admin_action_view, name='admin_action'),
     path('admin-logout/', views.admin_logout_view, name='admin_logout'),
     path('admin-edit/<int:alumni_id>/', views.admin_edit_alumni_view, name='admin_edit_alumni'),
-    path('admin-search/', views.admin_alumni_search_view, name='admin_alumni_search'),
+  path('admin-search/', views.admin_search_view, name='admin_search'),
 
 ]

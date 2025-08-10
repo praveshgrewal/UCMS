@@ -334,97 +334,101 @@ document.addEventListener('DOMContentLoaded', function () {
   initializeRegistration(); // includes setupPhotoUpload
 });
 
+<script>
+// ----- Submit Step 1 with AJAX -----
 document.addEventListener('DOMContentLoaded', function () {
-        // ... existing initializations ...
-        
-        // This is the key change: Handle form submission with AJAX
-        document.getElementById('registrationForm').addEventListener('submit', function(event) {
-            event.preventDefault(); // Prevent default form submission
+  const form = document.getElementById('registrationForm');
+  if (!form) return;
 
-            const form = event.target;
-            const formData = new FormData(form);
-            const submitBtn = form.querySelector('button[type="submit"]');
+  form.addEventListener('submit', async function (event) {
+    event.preventDefault();
 
-            // Show a loading state
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Loading...';
+    const formData = new FormData(form);
+    const submitBtn = form.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Loading...';
 
-            fetch(form.action, {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'X-CSRFToken': '{{ csrf_token }}',
-                }
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                return response.json();
-            })
-            .then(data => {
-                // Handle the JSON response from your Django view
-                if (data.success) {
-                    // Form is valid, move to step 2
-                    document.getElementById('step1').style.display = 'none';
-                    document.getElementById('step2').style.display = 'block';
-                    document.querySelector('.progress-step[data-step="2"]').classList.add('active');
-                    // Store contact and email in JavaScript for the resend function
-                    window.contact = data.contact;
-                    window.email = data.email;
-                    startOTPTimer(); // Start the timer for OTP
-                } else {
-                    // Form is invalid, display errors
-                    displayFormErrors(data.errors, form);
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('An error occurred. Please try again.');
-            })
-            .finally(() => {
-                // Reset button state
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = '<span class="btn-text">Proceed to Verification</span><i class="fas fa-arrow-right btn-icon"></i>';
-            });
-        });
-    });
+    try {
+      const url = form.getAttribute('action') || window.location.href;
+      const res = await fetch(url, {
+        method: 'POST',
+        body: formData,
+        headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+      });
 
-    // A helper function to display errors from the JSON response
-    function displayFormErrors(errors, form) {
-        // Clear previous errors
-        form.querySelectorAll('.error-message').forEach(el => el.remove());
+      // We ALWAYS try to read JSON (even if status is 400)
+      let data = {};
+      try { data = await res.json(); } catch (e) {}
 
-        for (const fieldName in errors) {
-            const errorList = errors[fieldName];
-            const field = form.querySelector(`[name="${fieldName}"]`);
-            if (field) {
-                const errorMessageHtml = `<div class="error-message text-danger mt-1">${errorList.join('<br>')}</div>`;
-                field.closest('.form-group').insertAdjacentHTML('beforeend', errorMessageHtml);
-            }
+      if (data && data.success) {
+        // Go to step 2
+        document.getElementById('step1').style.display = 'none';
+        document.getElementById('step2').style.display = 'block';
+        document.querySelector('.progress-step[data-step="2"]').classList.add('active');
+
+        // IMPORTANT: use correct keys from the view
+        window.contact = data.contact_number;   // <-- not data.contact
+        window.email   = data.email;
+
+        // Start timer if present
+        if (typeof startOTPTimer === 'function') startOTPTimer();
+      } else {
+        // Render validation errors if any
+        if (data && data.errors) {
+          displayFormErrors(data.errors, form);
+        } else {
+          alert('Something went wrong. Please check your details and try again.');
         }
+      }
+    } catch (err) {
+      console.error(err);
+      alert('An error occurred. Please try again.');
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = '<span class="btn-text">Proceed to Verification</span><i class="fas fa-arrow-right btn-icon"></i>';
     }
+  });
+});
 
-    // A new resendOTP function using the stored contact/email
-    function resendOTP(type) {
-        const contactToSend = type === 'phone' ? window.contact : window.email;
-        if (!contactToSend) {
-            alert('Contact information not found. Please go back to the form.');
-            return;
-        }
+// Helper to show field errors safely
+function displayFormErrors(errors, form) {
+  form.querySelectorAll('.error-message').forEach(el => el.remove());
 
-        fetch("{% url 'alumni:resend_otp' %}", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/x-www-form-urlencoded",
-                "X-CSRFToken": "{{ csrf_token }}"
-            },
-            body: `contact=${encodeURIComponent(contactToSend)}`
-        })
-        .then(res => res.json())
-        .then(data => alert(data.message))
-        .catch(err => console.error(err));
-    }
+  for (const fieldName in errors) {
+    const msgs = errors[fieldName];
+    const field = form.querySelector(`[name="${fieldName}"]`);
+    if (!field) continue;
+
+    const wrapper = field.closest('.form-group') || field.parentElement || field;
+    const html = `<div class="error-message text-danger mt-1">${msgs.join('<br>')}</div>`;
+    wrapper.insertAdjacentHTML('beforeend', html);
+  }
+}
+
+// ----- Resend OTP (step 2) -----
+function resendOTP(type) {
+  const contactToSend = (type === 'phone') ? window.contact : window.email;
+  if (!contactToSend) {
+    alert('Contact information not found. Please go back to the form.');
+    return;
+  }
+
+  fetch("{% url 'alumni:resend_otp' %}", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-CSRFToken": "{{ csrf_token }}"
+    },
+    body: JSON.stringify({ contact: contactToSend, type })
+  })
+  .then(r => r.json())
+  .then(data => alert(data.message || 'OTP resent.'))
+  .catch(err => {
+    console.error(err);
+    alert('Failed to resend OTP. Try again in a moment.');
+  });
+}
+</script>
 
     
 function toggleYearFields() {

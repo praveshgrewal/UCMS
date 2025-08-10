@@ -20,7 +20,7 @@
 }
 .alumni-actions .action-btn.edit {
     background-color: rgba(102, 126, 234, 0.2);
-    color: #86b7fe;
+    color: #667eea; /* Corrected color */
 }
 .alumni-actions .action-btn.edit:hover {
     background-color: #667eea;
@@ -87,7 +87,6 @@
 {% block content %}
 <div class="amazing-admin-container">
     <div class="container py-5">
-        <!-- Dashboard Header -->
         <div class="dashboard-header">
             <div class="header-content">
                 <h1 class="dashboard-title">
@@ -128,7 +127,6 @@
             </div>
         </div>
         
-        <!-- Pending Requests Section -->
         <div class="admin-section">
             <div class="section-header">
                 <div class="section-title">
@@ -204,7 +202,6 @@
             </div>
         </div>
     
-        <!-- Alumni Management Section -->
         <div class="admin-section">
             <div class="section-header">
                 <div class="section-title">
@@ -218,7 +215,6 @@
                 </div>
             </div>
             
-            <!-- Advanced Search Panel -->
             <div class="amazing-card glass-morphism search-panel">
                 <div class="search-header">
                     <h4>
@@ -231,8 +227,7 @@
                 </div>
                 
                 <div class="search-content" id="advancedSearch">
-                    <form method="get" id="searchForm">
-                        <div class="search-grid">
+                    <form method="get" id="searchForm" onsubmit="return false;"> <div class="search-grid">
                             <div class="search-group">
                                 <label class="search-label">
                                     <i class="fas fa-user"></i>
@@ -283,7 +278,6 @@
                         </div>
                         
                         <div class="search-actions">
-                            <!-- Buttons are now just for clearing -->
                             <button type="button" class="search-btn secondary" onclick="clearSearch()">
                                 <i class="fas fa-times"></i>
                                 <span>Clear Filters</span>
@@ -293,7 +287,6 @@
                 </div>
             </div>
             
-            <!-- Alumni Results -->
             <div class="amazing-card glass-morphism alumni-results">
                 <div class="results-header">
                     <h4>
@@ -306,7 +299,6 @@
                 <div class="search-loading-spinner" id="search-spinner"></div>
                 
                 <div class="alumni-grid" id="alumni-grid-container">
-                    <!-- Search results will be injected here by JavaScript -->
                     {% for alumni in approved_alumni %}
                     <div class="alumni-card">
                         <div class="alumni-header">
@@ -371,18 +363,14 @@
                                 </div>
                             </div>
                         </div>
-                   <div class="alumni-actions d-flex gap-3 mt-3">
-  <button type="button" class="btn btn-outline-primary d-flex align-items-center gap-2 shadow-sm px-3" onclick="editAlumni({{ alumni.id }})">
-    <i class="fas fa-edit"></i>
-    <span>Edit</span>
-  </button>
-
-  <button type="button" class="btn btn-outline-danger d-flex align-items-center gap-2 shadow-sm px-3" onclick="confirmRemove({{ alumni.id }})">
-    <i class="fas fa-trash-alt"></i>
-    <span>Remove</span>
-  </button>
-</div>
-
+                        <div class="alumni-actions">
+                             <button type="button" class="action-btn edit" onclick="editAlumni({{ alumni.id }})">
+                                 <i class="fas fa-edit"></i><span>Edit</span>
+                             </button>
+                             <button type="button" class="action-btn remove" onclick="confirmRemove({{ alumni.id }})">
+                                 <i class="fas fa-trash-alt"></i><span>Remove</span>
+                             </button>
+                        </div>
                     </div>
                     {% endfor %}
                 </div>
@@ -391,7 +379,6 @@
     </div>
 </div>
 
-<!-- Amazing Confirmation Modal -->
 <div class="modal fade" id="confirmModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content amazing-modal">
@@ -464,8 +451,12 @@ async function performLiveSearch() {
     resultsContainer.style.display = 'none';
 
     try {
+        // NOTE: This URL must match the one in your urls.py
         const response = await fetch(`/admin-search/?${params}`);
-        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json(); // This now expects and gets JSON
         
         if (data.error) {
             throw new Error(data.error);
@@ -476,10 +467,10 @@ async function performLiveSearch() {
 
     } catch (error) {
         console.error("Search failed:", error);
-        resultsContainer.innerHTML = `<div class="empty-state"><p>Error loading results. Please try again.</p></div>`;
+        resultsContainer.innerHTML = `<div class="empty-state" style="grid-column: 1 / -1;"><p>Error loading results. Please try again.</p></div>`;
     } finally {
         spinner.style.display = 'none';
-        resultsContainer.style.display = 'grid'; // Or 'block' depending on your layout
+        resultsContainer.style.display = 'grid';
     }
 }
 
@@ -506,13 +497,14 @@ function renderAlumniGrid(alumniList) {
         const pgHtml = alumni.joining_year_pg
             ? `<div class="detail-item"><i class="fas fa-user-graduate"></i><span>PG: ${alumni.joining_year_pg}</span></div>` : '';
 
+        // NOTE: This HTML structure now includes the correct classes for the action buttons
         const cardHtml = `
             <div class="alumni-card">
                 <div class="alumni-header">
                     <div class="alumni-avatar">${photoHtml}</div>
                     <div class="alumni-info">
                         <h5>${alumni.name}</h5>
-                        <span class="alumni-association">${alumni.academic_association}</span>
+                        <span class="alumni-association">${alumni.academic_association || 'N/A'}</span>
                     </div>
                     <div class="alumni-status">
                         <span class="status-badge approved"><i class="fas fa-check"></i> Approved</span>
@@ -523,10 +515,10 @@ function renderAlumniGrid(alumniList) {
                         <div class="detail-item"><i class="fas fa-graduation-cap"></i><span>UG: ${alumni.joining_year_ug}</span></div>
                         ${pgHtml}
                     </div>
-                    <div class="detail-row"><div class="detail-item"><i class="fas fa-stethoscope"></i><span>${alumni.specialty}</span></div></div>
+                    <div class="detail-row"><div class="detail-item"><i class="fas fa-stethoscope"></i><span>${alumni.specialty || 'N/A'}</span></div></div>
                     <div class="detail-row"><div class="detail-item"><i class="fas fa-map-marker-alt"></i><span>${alumni.city}, ${alumni.country}</span></div></div>
-                    <div class="detail-row"><div class="detail-item"><i class="fas fa-briefcase"></i><span>${alumni.current_designation}</span></div></div>
-                    <div class="detail-row"><div class="detail-item full-width"><i class="fas fa-hospital"></i><span>${alumni.current_work_association}</span></div></div>
+                    <div class="detail-row"><div class="detail-item"><i class="fas fa-briefcase"></i><span>${alumni.current_designation || 'N/A'}</span></div></div>
+                    <div class="detail-row"><div class="detail-item full-width"><i class="fas fa-hospital"></i><span>${alumni.current_work_association || 'N/A'}</span></div></div>
                 </div>
                 <div class="alumni-actions">
                     <button type="button" class="action-btn edit" onclick="editAlumni(${alumni.id})">
@@ -554,18 +546,18 @@ function toggleAdvancedSearch() {
     const searchContent = document.getElementById('advancedSearch');
     const toggleBtn = document.querySelector('.toggle-search-btn i');
     
-    if (searchContent.style.display === 'none' || !searchContent.style.display) {
+    // Simple toggle based on current display style
+    const isHidden = searchContent.style.display === 'none' || searchContent.style.display === '';
+    
+    if (isHidden) {
         searchContent.style.display = 'block';
-        searchContent.style.animation = 'slideDown 0.3s ease-out';
         toggleBtn.className = 'fas fa-chevron-up';
     } else {
-        searchContent.style.animation = 'slideUp 0.3s ease-out';
-        setTimeout(() => {
-            searchContent.style.display = 'none';
-            toggleBtn.className = 'fas fa-chevron-down';
-        }, 300);
+        searchContent.style.display = 'none';
+        toggleBtn.className = 'fas fa-chevron-down';
     }
 }
+
 
 // Edit alumni - redirects to the edit page
 function editAlumni(alumniId) {

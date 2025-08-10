@@ -426,5 +426,27 @@ document.addEventListener('DOMContentLoaded', function () {
         .catch(err => console.error(err));
     }
 
+    
+function toggleYearFields() {
+  const assoc = document.querySelector('[name="academic_association"]');
+  const ug = document.getElementById('group-joining-ug');
+  const pg = document.getElementById('group-joining-pg');
+  if (!assoc || !ug || !pg) return;
+
+  ug.style.display = 'none';
+  pg.style.display = 'none';
+
+  if (assoc.value === 'UG') ug.style.display = '';
+  else if (assoc.value === 'PG') pg.style.display = '';
+  else if (assoc.value === 'UG_PG') { ug.style.display = ''; pg.style.display = ''; }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const assoc = document.querySelector('[name="academic_association"]');
+  if (assoc) {
+    assoc.addEventListener('change', toggleYearFields);
+    toggleYearFields(); // initial state
+  }
+});
 </script>
 {% endblock %}

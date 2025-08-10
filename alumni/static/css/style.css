@@ -3354,3 +3354,29 @@ body {
         justify-content: center;
     }
 }
+/* --- form interactivity hot-fix --- */
+.modern-registration-container,
+.amazing-registration-card,
+.form-section { position: relative; }
+
+.modern-registration-container::before,
+.amazing-registration-card::before,
+.form-section::before {
+  pointer-events: none !important;
+  z-index: 0 !important;   /* overlays stay behind */
+}
+
+.input-container,
+.input-container input,
+.input-container select,
+.input-container textarea,
+.form-control,
+.form-select,
+button {
+  position: relative;       /* create stacking context */
+  z-index: 2;               /* always above overlays */
+  pointer-events: auto;     /* explicitly clickable */
+}
+
+/* Optional: if your focus ring is being clipped by overflow */
+.form-section { overflow: visible; }

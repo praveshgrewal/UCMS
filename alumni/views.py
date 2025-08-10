@@ -100,7 +100,26 @@ def verify_otp_view(request):
 
 def register_view(request):
     if request.method == 'POST':
-        form = AlumniRegistrationForm(request.POST, request.FILES)
+        email = (request.POST.get('email') or '').strip()
+        phone = (request.POST.get('contact_number') or '').strip()
+
+        existing = None
+        if email or phone:
+            existing = Alumni.objects.filter(
+                Q(email__iexact=email) | Q(contact_number=phone)
+            ).order_by('-created_at').first()
+
+        if existing and existing.status == 'approved':
+            return JsonResponse({
+                'success': False,
+                'errors': {'email': ['This email/phone is already registered. Please log in.']}
+            }, status=400)
+
+        form = AlumniRegistrationForm(
+            request.POST, request.FILES,
+            instance=existing if (existing and existing.status != 'approved') else None
+        )
+
         if form.is_valid():
             alumni = form.save(commit=False)
             alumni.status = 'pending'
@@ -112,21 +131,16 @@ def register_view(request):
                 send_email_otp(alumni.email)
 
             request.session['pending_registration_id'] = alumni.id
-            
-            # Return a JSON response for the frontend to handle the next step
             return JsonResponse({
                 'success': True,
                 'message': 'OTP sent. Proceed to verification.',
                 'contact_number': alumni.contact_number,
                 'email': alumni.email
             })
-        else:
-            # If the form is invalid, return a JSON response with errors
-            errors = dict(form.errors.items())
-            return JsonResponse({'success': False, 'errors': errors}, status=400)
-    else:
-        form = AlumniRegistrationForm()
-        return render(request, 'alumni/register.html', {'form': form})
+        return JsonResponse({'success': False, 'errors': dict(form.errors.items())}, status=400)
+
+    form = AlumniRegistrationForm()
+    return render(request, 'alumni/register.html', {'form': form})
 
  
 
@@ -323,15 +337,22 @@ def admin_panel_view(request):
         messages.error(request, 'Access denied')
         return redirect('alumni:login')
 
-    # Everyone with admin access can SEE pending
-    pending_requests = Alumni.objects.filter(status='pending')
+    pending_qs = Alumni.objects.filter(status='pending').order_by('-created_at', '-id')
 
-    approved_alumni = Alumni.objects.filter(status='approved')
+    seen = set()
+    unique_pending = []
+    for a in pending_qs:
+        key = ((a.email or '').strip().lower(), (a.contact_number or '').strip())
+        if key not in seen:
+            seen.add(key)
+            unique_pending.append(a)
+
+    approved_alumni = Alumni.objects.filter(status='approved').order_by('-created_at')
 
     return render(request, 'alumni/admin_panel.html', {
-        'pending_requests': pending_requests,
+        'pending_requests': unique_pending,
         'approved_alumni': approved_alumni,
-        'can_take_actions': is_super_admin(request.user),  # use in template to show/hide buttons
+        'can_take_actions': is_super_admin(request.user),
     })
 
 
@@ -346,23 +367,33 @@ def admin_review_view(request, alumni_id):
 
 @login_required
 def admin_action_view(request, alumni_id, action):
-    if not is_super_admin(request.user):
+    if not is_admin(request.user):
         messages.error(request, 'Access denied')
-        return redirect('alumni:login')
+        return redirect('alumni:admin_panel')
 
     alumni = get_object_or_404(Alumni, id=alumni_id)
+
     if action == 'approve':
         alumni.status = 'approved'
         alumni.is_verified = True
         alumni.save()
         messages.success(request, f'Alumni {alumni.name} approved successfully')
+
     elif action == 'reject':
         alumni.status = 'rejected'
         alumni.save()
         messages.success(request, f'Alumni {alumni.name} rejected')
+
     elif action == 'delete':
+        if not is_super_admin(request.user):
+            messages.error(request, 'Only super admins can delete records.')
+            return redirect('alumni:admin_panel')
         alumni.delete()
         messages.success(request, 'Alumni record deleted')
+
+    else:
+        messages.error(request, 'Invalid action')
+
     return redirect('alumni:admin_panel')
 
 

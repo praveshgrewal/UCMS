@@ -14,7 +14,7 @@ from .forms import (
     AdminLoginForm, AlumniFilterForm
 )
 from .utils import send_sms_otp, send_email_otp, verify_otp, check_existing_alumni
-from .views import is_admin, is_super_admin 
+# from .views import is_admin, is_super_admin 
 
 from django.utils import timezone
 

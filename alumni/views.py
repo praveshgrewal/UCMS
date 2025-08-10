@@ -410,36 +410,37 @@ def admin_review_view(request, alumni_id):
 
 @login_required
 def admin_action_view(request, alumni_id, action):
-    if request.method != 'POST':
-        messages.error(request, 'Invalid request method.')
+    # Admin permissions check karein
+    if not request.user.is_superuser:
+        messages.error(request, 'You do not have permission to perform this action.')
         return redirect('alumni:admin_panel')
 
-    if not is_admin(request.user):
-        messages.error(request, 'Access denied')
-        return redirect('alumni:admin_panel')
-
+    # Sahi alumni record ko dhoondhein
     alumni = get_object_or_404(Alumni, id=alumni_id)
 
+    # Action ke hisaab se kaam karein
     if action == 'approve':
         alumni.status = 'approved'
         alumni.is_verified = True
         alumni.save()
-        messages.success(request, f'Alumni {alumni.name} approved successfully')
+        messages.success(request, f"Alumni '{alumni.name}' has been approved successfully.")
 
     elif action == 'reject':
         alumni.status = 'rejected'
         alumni.save()
-        messages.success(request, f'Alumni {alumni.name} rejected')
+        messages.success(request, f"Alumni '{alumni.name}' has been rejected.")
 
     elif action == 'delete':
+        alumni_name = alumni.name
         alumni.delete()
-        messages.success(request, 'Alumni record deleted')
+        messages.success(request, f"Alumni record for '{alumni_name}' has been deleted.")
 
     else:
-        messages.error(request, 'Invalid action')
+        messages.error(request, 'Invalid action specified.')
 
+    # Kaam poora hone ke baad admin panel par wapas bhej dein
     return redirect('alumni:admin_panel')
-
+# ### END: BADLAV YAHAN KHATAM HUA ###
 
 
 @login_required

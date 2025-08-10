@@ -3,17 +3,29 @@ from django import forms
 from .models import Alumni
 import datetime
 
+
 class AlumniLoginForm(forms.Form):
     contact = forms.CharField(
         max_length=100,
-        widget=forms.TextInput(attrs={'class': 'form-control','placeholder': 'Phone / Email','required': True})
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Phone / Email',
+            'required': True
+        })
     )
+
 
 class OTPVerificationForm(forms.Form):
     otp = forms.CharField(
         max_length=6,
-        widget=forms.TextInput(attrs={'class': 'form-control','placeholder': 'Enter OTP','required': True,'maxlength': '6'})
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Enter OTP',
+            'required': True,
+            'maxlength': '6'
+        })
     )
+
 
 class AlumniRegistrationForm(forms.ModelForm):
     ACADEMIC_CHOICES = [
@@ -22,12 +34,13 @@ class AlumniRegistrationForm(forms.ModelForm):
         ('UG_PG', 'UG and PG'),
     ]
 
-    # IMPORTANT: use ChoiceField so posted value matches model choices
+    # Keep this as a form ChoiceField so it always posts a valid value
     academic_association = forms.ChoiceField(
         choices=ACADEMIC_CHOICES,
         widget=forms.Select(attrs={'class': 'form-select', 'required': True})
     )
 
+    # Not a model field – used only for confirmation
     declaration = forms.BooleanField(
         required=True,
         widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
@@ -62,17 +75,27 @@ class AlumniRegistrationForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        import datetime
+        # Build year choices (1950..current)
         current_year = datetime.date.today().year
         years = [(y, y) for y in range(1950, current_year + 1)]
 
-        # ✅ bind choices to the fields
+        # Bind choices to fields so the selects are populated
         self.fields['joining_year_ug'].choices = [('', 'Select Year')] + years
         self.fields['joining_year_pg'].choices = [('', 'Select Year')] + years
 
-        # Start with UG required; we'll enforce proper required-ness in clean()
+        # Start non-required; we enforce the right ones in clean()
         self.fields['joining_year_ug'].required = False
         self.fields['joining_year_pg'].required = False
+
+        # Make sure selects remain clickable and styled
+        self.fields['joining_year_ug'].widget.attrs.update({
+            'class': (self.fields['joining_year_ug'].widget.attrs.get('class', '') + ' form-select').strip(),
+            'data-role': 'year-ug',
+        })
+        self.fields['joining_year_pg'].widget.attrs.update({
+            'class': (self.fields['joining_year_pg'].widget.attrs.get('class', '') + ' form-select').strip(),
+            'data-role': 'year-pg',
+        })
 
     def clean(self):
         cleaned = super().clean()
@@ -80,34 +103,71 @@ class AlumniRegistrationForm(forms.ModelForm):
         ug = cleaned.get('joining_year_ug')
         pg = cleaned.get('joining_year_pg')
 
+        # Normalize empty strings to None (ChoiceField can pass '')
+        if ug in ('', None):
+            ug = None
+            cleaned['joining_year_ug'] = None
+        if pg in ('', None):
+            pg = None
+            cleaned['joining_year_pg'] = None
+
         if assoc == 'UG':
             if not ug:
                 self.add_error('joining_year_ug', 'UG year is required.')
-            cleaned['joining_year_pg'] = None  # drop PG
+            cleaned['joining_year_pg'] = None
         elif assoc == 'PG':
             if not pg:
                 self.add_error('joining_year_pg', 'PG year is required.')
-            cleaned['joining_year_ug'] = None  # UG can be blank
+            cleaned['joining_year_ug'] = None
         elif assoc == 'UG_PG':
             if not ug:
                 self.add_error('joining_year_ug', 'UG year is required.')
             if not pg:
                 self.add_error('joining_year_pg', 'PG year is required.')
+
         return cleaned
+
 
 class AdminLoginForm(forms.Form):
     username = forms.CharField(
         max_length=150,
-        widget=forms.TextInput(attrs={'class': 'form-control','placeholder': 'Username','required': True})
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Username',
+            'required': True
+        })
     )
     password = forms.CharField(
-        widget=forms.PasswordInput(attrs={'class': 'form-control','placeholder': 'Password','required': True})
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Password',
+            'required': True
+        })
     )
 
+
 class AlumniFilterForm(forms.Form):
-    name = forms.CharField(required=False, widget=forms.TextInput(attrs={'class': 'form-control','placeholder': 'Search by name'}))
-    joining_year = forms.IntegerField(required=False, widget=forms.NumberInput(attrs={'class': 'form-control','placeholder': 'Joining Year'}))
-    work_association = forms.CharField(required=False, widget=forms.TextInput(attrs={'class': 'form-control','placeholder': 'Work Association'}))
-    specialization = forms.CharField(required=False, widget=forms.TextInput(attrs={'class': 'form-control','placeholder': 'Specialization'}))
-    location = forms.CharField(required=False, widget=forms.TextInput(attrs={'class': 'form-control','placeholder': 'Location'}))
-    designation = forms.CharField(required=False, widget=forms.TextInput(attrs={'class': 'form-control','placeholder': 'Designation'}))
+    name = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Search by name'})
+    )
+    joining_year = forms.IntegerField(
+        required=False,
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Joining Year'})
+    )
+    work_association = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Work Association'})
+    )
+    specialization = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Specialization'})
+    )
+    location = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Location'})
+    )
+    designation = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Designation'})
+    )

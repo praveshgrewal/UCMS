@@ -1,49 +1,42 @@
+# forms.py
 from django import forms
-from datetime import datetime
-from .models import Alumni, ACADEMIC_ASSOC_CHOICES
+from .models import Alumni
+import datetime
 
 class AlumniLoginForm(forms.Form):
     contact = forms.CharField(
         max_length=100,
-        widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Phone / Email',
-            'required': True
-        })
+        widget=forms.TextInput(attrs={'class': 'form-control','placeholder': 'Phone / Email','required': True})
     )
 
 class OTPVerificationForm(forms.Form):
     otp = forms.CharField(
         max_length=6,
-        widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Enter OTP',
-            'required': True,
-            'maxlength': '6'
-        })
+        widget=forms.TextInput(attrs={'class': 'form-control','placeholder': 'Enter OTP','required': True,'maxlength': '6'})
     )
 
 class AlumniRegistrationForm(forms.ModelForm):
+    ACADEMIC_CHOICES = [
+        ('UG', 'UG'),
+        ('PG', 'PG'),
+        ('UG_PG', 'UG and PG'),
+    ]
+
+    # IMPORTANT: use ChoiceField so posted value matches model choices
+    academic_association = forms.ChoiceField(
+        choices=ACADEMIC_CHOICES,
+        widget=forms.Select(attrs={'class': 'form-select', 'required': True})
+    )
+
     declaration = forms.BooleanField(
         required=True,
         widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
     )
 
-    # Dropdown instead of free text
-    academic_association = forms.ChoiceField(
-        choices=[('', 'Select Association')] + ACADEMIC_ASSOC_CHOICES,
-        required=True,
-        widget=forms.Select(attrs={'class': 'form-select'})
-    )
-
-    # keep as Select; we set choices in __init__
-    joining_year_ug = forms.TypedChoiceField(choices=[], coerce=int, required=False)
-    joining_year_pg = forms.TypedChoiceField(choices=[], coerce=int, required=False)
-    
     class Meta:
         model = Alumni
         fields = [
-            'photo', 'name', 'academic_association', 'joining_year_ug', 
+            'photo', 'name', 'academic_association', 'joining_year_ug',
             'joining_year_pg', 'specialty', 'country', 'state', 'city',
             'current_work_association', 'current_designation', 'associated_hospital',
             'contact_number', 'alternate_contact', 'email'
@@ -51,6 +44,9 @@ class AlumniRegistrationForm(forms.ModelForm):
         widgets = {
             'photo': forms.FileInput(attrs={'class': 'form-control', 'accept': 'image/*'}),
             'name': forms.TextInput(attrs={'class': 'form-control', 'required': True}),
+            # academic_association widget is defined above
+            'joining_year_ug': forms.Select(attrs={'class': 'form-select'}),
+            'joining_year_pg': forms.Select(attrs={'class': 'form-select'}),
             'specialty': forms.TextInput(attrs={'class': 'form-control', 'required': True}),
             'country': forms.TextInput(attrs={'class': 'form-control', 'required': True}),
             'state': forms.TextInput(attrs={'class': 'form-control', 'required': True}),
@@ -62,14 +58,18 @@ class AlumniRegistrationForm(forms.ModelForm):
             'alternate_contact': forms.TextInput(attrs={'class': 'form-control'}),
             'email': forms.EmailInput(attrs={'class': 'form-control', 'required': True}),
         }
-    
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Generate year choices descending to current year
-        current_year = datetime.now().year
-        year_choices = [('', 'Select Year')] + [(y, y) for y in range(current_year, 1949, -1)]
-        self.fields['joining_year_ug'].choices = year_choices
-        self.fields['joining_year_pg'].choices = year_choices
+        # year choices: 1950..current year
+        current_year = datetime.datetime.now().year
+        years = [('', 'Select Year')] + [(y, y) for y in range(1950, current_year + 1)]
+        self.fields['joining_year_ug'].choices = years
+        self.fields['joining_year_pg'].choices = years
+
+        # Start with UG required; we'll enforce proper required-ness in clean()
+        self.fields['joining_year_ug'].required = False
+        self.fields['joining_year_pg'].required = False
 
     def clean(self):
         cleaned = super().clean()
@@ -79,19 +79,17 @@ class AlumniRegistrationForm(forms.ModelForm):
 
         if assoc == 'UG':
             if not ug:
-                self.add_error('joining_year_ug', 'UG joining year is required.')
-            cleaned['joining_year_pg'] = None
-
+                self.add_error('joining_year_ug', 'UG year is required.')
+            cleaned['joining_year_pg'] = None  # drop PG
         elif assoc == 'PG':
             if not pg:
-                self.add_error('joining_year_pg', 'PG joining year is required.')
-            cleaned['joining_year_ug'] = None
-
+                self.add_error('joining_year_pg', 'PG year is required.')
+            cleaned['joining_year_ug'] = None  # UG can be blank
         elif assoc == 'UG_PG':
             if not ug:
-                self.add_error('joining_year_ug', 'UG joining year is required.')
-            # PG optional when both selected
-
+                self.add_error('joining_year_ug', 'UG year is required.')
+            if not pg:
+                self.add_error('joining_year_pg', 'PG year is required.')
         return cleaned
 
 class AdminLoginForm(forms.Form):

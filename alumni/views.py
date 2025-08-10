@@ -380,11 +380,13 @@ def admin_review_view(request, alumni_id):
 
 @login_required
 def admin_action_view(request, alumni_id, action):
+    # Only allow POST to avoid accidental/CSRF actions
     if request.method != 'POST':
         messages.error(request, 'Invalid request method.')
         return redirect('alumni:admin_panel')
 
-    if not is_admin(request.user):  # admins allowed for approve/reject/delete
+    # Allow any admin (staff or in AdminUser) to act
+    if not is_admin(request.user):
         messages.error(request, 'Access denied')
         return redirect('alumni:admin_panel')
 
@@ -402,7 +404,7 @@ def admin_action_view(request, alumni_id, action):
         messages.success(request, f'Alumni {alumni.name} rejected')
 
     elif action == 'delete':
-        # If you want only super admins to delete, switch to: if not is_super_admin(request.user): ...
+        # If you want only super admins to delete, change guard here to: if not is_super_admin(request.user): ...
         alumni.delete()
         messages.success(request, 'Alumni record deleted')
 

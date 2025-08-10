@@ -69,39 +69,39 @@
                     </div>
                   </div>
                 </div>
-                <!-- Academic Details -->
-                <div class="form-section">
-                  <h4 class="section-title">
-                    <i class="fas fa-book"></i>
-                    Academic Details
-                  </h4>
+<!-- Academic Details -->
+<div class="form-section">
+  <h4 class="section-title">
+    <i class="fas fa-book"></i>
+    Academic Details
+  </h4>
 
-                  <div class="form-row">
-                    <div class="form-group" id="group-joining-ug">
-                      <label class="modern-label" for="{{ form.joining_year_ug.id_for_label }}">Joining Year UG</label>
-                      <div class="input-container">
-                        {{ form.joining_year_ug }}
-                        <i class="fas fa-calendar input-icon" aria-hidden="true"></i>
-                      </div>
-                    </div>
+  <div class="form-row">
+    <div class="form-group" id="group-joining-ug">
+      <label class="modern-label" for="{{ form.joining_year_ug.id_for_label }}">Joining Year UG</label>
+      <div class="input-container">
+        {{ form.joining_year_ug }}
+        <i class="fas fa-calendar input-icon" aria-hidden="true"></i>
+      </div>
+    </div>
 
-                    <div class="form-group" id="group-joining-pg">
-                      <label class="modern-label" for="{{ form.joining_year_pg.id_for_label }}">Joining Year PG</label>
-                      <div class="input-container">
-                        {{ form.joining_year_pg }}
-                        <i class="fas fa-calendar-alt input-icon" aria-hidden="true"></i>
-                      </div>
-                    </div>
-                  </div>
+    <div class="form-group" id="group-joining-pg">
+      <label class="modern-label" for="{{ form.joining_year_pg.id_for_label }}">Joining Year PG</label>
+      <div class="input-container">
+        {{ form.joining_year_pg }}
+        <i class="fas fa-calendar-alt input-icon" aria-hidden="true"></i>
+      </div>
+    </div>
+  </div>
 
-                  <div class="form-group">
-                    <label class="modern-label">Specialty</label>
-                    <div class="input-container">
-                      {{ form.specialty }}
-                      <i class="fas fa-stethoscope input-icon" aria-hidden="true"></i>
-                    </div>
-                  </div>
-                </div>
+  <div class="form-group">
+    <label class="modern-label">Specialty</label>
+    <div class="input-container">
+      {{ form.specialty }}
+      <i class="fas fa-stethoscope input-icon" aria-hidden="true"></i>
+    </div>
+  </div>
+</div>
 
                 <!-- Location -->
                 <div class="form-section">
@@ -315,32 +315,19 @@ function goBackToForm() {
   document.getElementById('step1').style.display = 'block';
 }
 
-// ############# START: YAHAN BADLAV KIYA GAYA HAI #############
 function toggleYearFields() {
   const assoc = document.querySelector('[name="academic_association"]');
   const ug = document.getElementById('group-joining-ug');
   const pg = document.getElementById('group-joining-pg');
   if (!assoc || !ug || !pg) return;
 
-  // Dono fields ko pehle hide kar dein
   ug.style.display = 'none';
   pg.style.display = 'none';
 
-  // Sahi value ke hisaab se check karein
-  // Yeh values aapke forms.py ki 'choices' se match honi chahiye
-  const selectedValue = assoc.value;
-
-  if (selectedValue === 'Undergraduate' || selectedValue === 'UG') {
-      ug.style.display = 'block'; // 'block' ya '' ka istemal karein
-  } else if (selectedValue === 'Postgraduate' || selectedValue === 'PG') {
-      pg.style.display = 'block';
-  } else if (selectedValue === 'Both' || selectedValue === 'UG_PG') {
-      ug.style.display = 'block';
-      pg.style.display = 'block';
-  }
+  if (assoc.value === 'UG') ug.style.display = '';
+  else if (assoc.value === 'PG') pg.style.display = '';
+  else if (assoc.value === 'UG_PG') { ug.style.display = ''; pg.style.display = ''; }
 }
-// ############# END: YAHAN BADLAV KIYA GAYA HAI #############
-
 
 function displayFormErrors(errors, form) {
   form.querySelectorAll('.error-message').forEach(el => el.remove());
@@ -368,7 +355,7 @@ document.addEventListener('DOMContentLoaded', function () {
   const assoc = document.querySelector('[name="academic_association"]');
   if (assoc) {
     assoc.addEventListener('change', toggleYearFields);
-    toggleYearFields(); // Page load par bhi run karein
+    toggleYearFields();
   }
 
   // AJAX submit for Step 1

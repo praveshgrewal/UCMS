@@ -170,6 +170,11 @@
         </div>
     </div>
 </div>
+
+<!-- Hidden POST form (for approve/reject) -->
+<form id="actionForm" method="post" style="display:none;">
+    {% csrf_token %}
+</form>
 {% endblock %}
 
 {% block extra_js %}
@@ -206,9 +211,20 @@ function editInfo() {
 }
 
 document.getElementById('confirmBtn').addEventListener('click', function() {
-    if (currentAction) {
-        window.location.href = `/admin-action/{{ alumni.id }}/${currentAction}/`;
+    if (!currentAction) return;
+    const form = document.getElementById('actionForm');
+
+    if (currentAction === 'approve') {
+        form.action = '/admin-action/{{ alumni.id }}/approve/';
+    } else if (currentAction === 'reject') {
+        form.action = '/admin-action/{{ alumni.id }}/reject/';
+    } else {
+        return;
     }
+
+    this.disabled = true;           // prevent double submit
+    this.innerHTML = 'Processing…'; // quick feedback
+    form.submit();
 });
 </script>
 {% endblock %}

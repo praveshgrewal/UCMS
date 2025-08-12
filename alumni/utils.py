@@ -24,13 +24,20 @@ def generate_otp():
 # -------------------------------
 def send_sms_otp(contact):
     """Send OTP via SMS and save it in DB."""
+    
+    # Debugging: Print the contact being passed
+    print(f"Attempting to send OTP to: {contact}")
+    
+    # Generate OTP
     otp = generate_otp()
+    
+    # Set expiration time (default 5 minutes)
     expires_at = timezone.now() + timedelta(minutes=getattr(settings, "OTP_EXPIRY_MINUTES", 5))
 
-    # Remove old OTPs for this contact
+    # Remove old OTPs for this contact to avoid duplicates
     OTPVerification.objects.filter(contact=contact).delete()
 
-    # Save OTP in DB
+    # Save OTP to the database
     OTPVerification.objects.create(
         contact=contact,
         otp=otp,
@@ -38,17 +45,39 @@ def send_sms_otp(contact):
         is_verified=False
     )
 
-    # Send via 2Factor API
-    api_key = settings.TWO_FACTOR_API_KEY
+    # Debugging: Print the OTP and expiration time
+    print(f"Generated OTP: {otp}, Expiry Time: {expires_at}")
+
+    # Prepare the phone number (ensure it has +91 prefix if not already included)
     phone = f"+91{contact}" if not contact.startswith("+91") else contact
+    
+    # Debugging: Print the phone number being used for the API call
+    print(f"Sending OTP to phone number: {phone}")
+
+    # 2Factor API URL
+    api_key = settings.TWO_FACTOR_API_KEY
     url = f"https://2factor.in/API/V1/{api_key}/SMS/{phone}/{otp}"
+    
     try:
+        # Make the request to 2Factor API to send the SMS
         res = requests.get(url, timeout=5)
+        
+        # Debugging: Print API response for verification
         print("SMS OTP Response:", res.json())
+        
+        # Check if the response was successful (e.g., "status" == "success")
+        if res.status_code == 200 and 'status' in res.json() and res.json()['status'] == 'success':
+            print(f"OTP sent successfully to {phone}")
+        else:
+            print(f"Failed to send OTP to {phone}, Response: {res.json()}")
+    
     except Exception as e:
+        # Log any error that occurs during the request
         print("SMS OTP Error:", e)
 
+    # Return the OTP for further use
     return otp
+
 
 
 # -------------------------------

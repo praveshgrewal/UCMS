@@ -249,31 +249,32 @@
 
                 <div class="otp-inputs">
                   <!-- Phone OTP -->
+                 <!-- Phone OTP -->
                   <div class="otp-group form-group">
-                    <label class="modern-label">
-                      <i class="fas fa-phone"></i> Phone Verification
-                    </label>
-                    <div class="input-container otp-input-container">
-                      <input type="text" class="otp-input" name="phoneOtp" maxlength="6" placeholder="Enter OTP" required>
-                      <button type="button" class="resend-btn" onclick="resendOTP('phone')">
-                        <i class="fas fa-redo"></i> Resend
-                      </button>
-                    </div>
+                      <label class="modern-label">
+                          <i class="fas fa-phone"></i> Phone Verification
+                      </label>
+                      <div class="input-container otp-input-container">
+                          <input type="text" class="otp-input" name="phoneOtp" maxlength="6" placeholder="Enter OTP" required>
+                          <button type="button" class="resend-btn" data-type="phone">
+                              <i class="fas fa-redo"></i> Resend
+                          </button>
+                      </div>
                   </div>
-
+                  
                   <!-- Email OTP -->
                   <div class="otp-group form-group">
-                    <label class="modern-label">
-                      <i class="fas fa-envelope"></i> Email Verification
-                    </label>
-                    <div class="input-container otp-input-container">
-                      <input type="text" class="otp-input" name="emailOtp" maxlength="6" placeholder="Enter OTP" required>
-                      <button type="button" class="resend-btn" onclick="resendOTP('email')">
-                        <i class="fas fa-redo"></i> Resend
-                      </button>
-                    </div>
+                      <label class="modern-label">
+                          <i class="fas fa-envelope"></i> Email Verification
+                      </label>
+                      <div class="input-container otp-input-container">
+                          <input type="text" class="otp-input" name="emailOtp" maxlength="6" placeholder="Enter OTP" required>
+                          <button type="button" class="resend-btn" data-type="email">
+                              <i class="fas fa-redo"></i> Resend
+                          </button>
+                      </div>
                   </div>
-                </div>
+                  
 
                 <!-- OTP Timer -->
                 <div class="verification-timer">
@@ -309,7 +310,7 @@
 </div>
 
 <script>
-<script>
+
 /* ------------ helpers ------------ */
 function goBackToForm() {
   document.getElementById('step2').style.display = 'none';
@@ -344,19 +345,77 @@ function displayFormErrors(errors, form) {
 
 /* ------------ page init ------------ */
 document.addEventListener('DOMContentLoaded', function () {
-  // if those utilities exist, call them; otherwise ignore
-  if (typeof initializeScreenshotProtection === 'function') initializeScreenshotProtection();
-  if (typeof initializeDirectorySearch === 'function') initializeDirectorySearch();
-  if (typeof setupFormValidation === 'function') setupFormValidation();
-  if (typeof setupLocationSuggestions === 'function') setupLocationSuggestions();
-  if (typeof setupOTPTimer === 'function') setupOTPTimer();
-  if (typeof initializeRegistration === 'function') initializeRegistration();
+  // Initialize OTP Timer and Resend buttons
+  let otpTimer = document.getElementById("otpTimer");
+  let resendPhoneBtn = document.querySelector(".resend-btn[data-type='phone']");
+  let resendEmailBtn = document.querySelector(".resend-btn[data-type='email']");
+  let countdownTime = 300; // 5 minutes countdown (300 seconds)
+  let interval;
 
-  // show/hide year fields by association
-  const assoc = document.querySelector('[name="academic_association"]');
-  if (assoc) {
-    assoc.addEventListener('change', toggleYearFields);
-    toggleYearFields();
+  function updateTimer() {
+    let minutes = Math.floor(countdownTime / 60);
+    let seconds = countdownTime % 60;
+    otpTimer.textContent = `OTP expires in ${minutes}:${seconds < 10 ? '0' + seconds : seconds}`;
+    countdownTime--;
+    
+    if (countdownTime < 0) {
+        clearInterval(interval);
+        otpTimer.textContent = 'OTP has expired.';
+        disableResendButtons(false); // Enable Resend OTP buttons
+    }
+  }
+
+  // Start the OTP countdown
+  interval = setInterval(updateTimer, 1000);
+
+  // Disable resend buttons initially
+  function disableResendButtons(disable = true) {
+    resendPhoneBtn.disabled = disable;
+    resendEmailBtn.disabled = disable;
+    if (disable) {
+      resendPhoneBtn.textContent = 'Wait...';
+      resendEmailBtn.textContent = 'Wait...';
+    } else {
+      resendPhoneBtn.textContent = 'Resend';
+      resendEmailBtn.textContent = 'Resend';
+    }
+  }
+
+  // Resend OTP (Phone)
+  resendPhoneBtn.addEventListener('click', function () {
+    disableResendButtons(true); // Disable resend button for 30 seconds
+    resendOTP('phone');
+  });
+
+  // Resend OTP (Email)
+  resendEmailBtn.addEventListener('click', function () {
+    disableResendButtons(true); // Disable resend button for 30 seconds
+    resendOTP('email');
+  });
+
+  // Function to resend OTP via AJAX
+  function resendOTP(type) {
+    const contactToSend = (type === 'phone') ? window.contact : window.email;
+
+    if (!contactToSend) {
+      alert('Contact information not found. Please go back to the form.');
+      return;
+    }
+
+    fetch("{% url 'alumni:resend_otp' %}", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": "{{ csrf_token }}"
+      },
+      body: JSON.stringify({ contact: contactToSend, type })
+    })
+    .then(r => r.json())
+    .then(data => alert(data.message || 'OTP resent.'))
+    .catch(err => {
+      console.error(err);
+      alert('Failed to resend OTP. Try again.');
+    });
   }
 
   // AJAX submit for Step 1
@@ -429,5 +488,6 @@ function resendOTP(type) {
   });
 }
 </script>
+
 
 {% endblock %}

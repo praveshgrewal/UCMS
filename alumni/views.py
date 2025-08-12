@@ -131,22 +131,25 @@ def register_view(request):
         }, status=200)  # <-- 200 so JS can render error inline
 
     # If a pending/rejected record exists, update it; otherwise create new
-    form = AlumniRegistrationForm(
-        request.POST,
-        request.FILES,
-        instance=(existing if existing and existing.status != 'approved' else None)
-    )
+    if existing and existing.status in ['pending', 'rejected']:
+        alumni = existing
+    else:
+        form = AlumniRegistrationForm(
+            request.POST,
+            request.FILES,
+            instance=(existing if existing else None)
+        )
 
-    if not form.is_valid():
-        return JsonResponse({
-            'success': False,
-            'errors': dict(form.errors.items())
-        }, status=200)  # <-- 200 so the frontend shows field errors
+        if not form.is_valid():
+            return JsonResponse({
+                'success': False,
+                'errors': dict(form.errors.items())
+            }, status=200)  # <-- 200 so the frontend shows field errors
 
-    alumni = form.save(commit=False)
-    alumni.status = 'pending'
-    alumni.is_verified = False
-    alumni.save()
+        alumni = form.save(commit=False)
+        alumni.status = 'pending'
+        alumni.is_verified = False
+        alumni.save()
 
     # Send OTPs (do not fail the whole request if one sender throws)
     sms_ok = False
@@ -156,7 +159,7 @@ def register_view(request):
             send_sms_otp(alumni.contact_number)
             sms_ok = True
     except Exception as e:
-        # Optionally log e
+        print(f"SMS Error: {e}")
         sms_ok = False
 
     try:
@@ -164,7 +167,7 @@ def register_view(request):
             send_email_otp(alumni.email)
             email_ok = True
     except Exception as e:
-        # Optionally log e
+        print(f"Email Error: {e}")
         email_ok = False
 
     request.session['pending_registration_id'] = alumni.id
@@ -174,10 +177,10 @@ def register_view(request):
         'message': 'OTP sent. Proceed to verification.',
         'contact_number': alumni.contact_number,
         'email': alumni.email,
-        # Optional flags if you want to inspect on the client
         'sms_sent': sms_ok,
         'email_sent': email_ok,
     }, status=200)
+
 
 
 @csrf_exempt

@@ -70,6 +70,9 @@ def send_email_otp(email):
         is_verified=False
     )
 
+    # Log OTP being generated and sent
+    print(f"Generated OTP for {email}: {otp}")
+
     # HTML email content
     otp_html = f"""
     <!DOCTYPE html>

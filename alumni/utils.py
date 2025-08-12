@@ -70,7 +70,7 @@ def send_email_otp(email):
         is_verified=False
     )
 
-    # Log OTP being generated and sent
+    # Log OTP being generated and saved
     print(f"Generated OTP for {email}: {otp}")
 
     # HTML email content
@@ -140,10 +140,13 @@ def send_email_otp(email):
     try:
         response = client.send(mail)
         print("✅ Email OTP sent successfully:", response)
+        print(f"Message ID: {response.get('message_ids')}")
     except Exception as e:
         print("❌ Error sending Email OTP:", e)
+        print(f"Error details: {e}")
 
     return otp
+
 
 
 

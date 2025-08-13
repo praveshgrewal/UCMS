@@ -105,23 +105,18 @@ def import_alumni_from_excel():
             print(f"❌ Excel file not found at {excel_path}")
             return 0
 
-        # Excel फ़ाइल को पढ़ते समय खाली सेल्स को 'nan' की जगह खाली स्ट्रिंग ('') मानें
         df = pd.read_excel(excel_path).fillna('')
         imported_count = 0
 
         for index, row in df.iterrows():
             try:
-                # हर वैल्यू को सुरक्षित रूप से स्ट्रिंग में बदलें
                 email = str(row.get('Email Address', '')).strip()
                 contact_number = str(row.get('Your Contact Number (WhatsApp)', '')).strip()
 
-                # अगर ईमेल और कॉन्टैक्ट नंबर दोनों खाली हैं, तो इस पंक्ति को छोड़ दें
                 if not email and not contact_number:
                     print(f"⏩ Skipping row {index+2}: Both email and contact are empty.")
                     continue
 
-                # अगर रिकॉर्ड पहले से मौजूद है, तो उसे भी छोड़ दें
-                # नोट: अगर आप चाहें तो मौजूदा रिकॉर्ड को अपडेट भी कर सकते हैं
                 if email and Alumni.objects.filter(email=email).exists():
                     print(f"⏩ Skipping row {index+2}: Email '{email}' already exists.")
                     continue
@@ -129,15 +124,34 @@ def import_alumni_from_excel():
                     print(f"⏩ Skipping row {index+2}: Contact '{contact_number}' already exists.")
                     continue
 
-                # सभी डेटा को एक डिक्शनरी में इकट्ठा करें, और सुनिश्चित करें कि सब स्ट्रिंग है
+                # --- START: SOLVED THE JOINING YEAR PROBLEM HERE ---
+                joining_year_ug = None
+                joining_year_pg = None
+
+                try:
+                    # '2014.0' जैसी वैल्यू को पहले float में, फिर int में बदलें
+                    jy_ug_raw = str(row.get('Joining Year (UG) ', '')).strip()
+                    if jy_ug_raw:
+                        joining_year_ug = int(float(jy_ug_raw))
+                except (ValueError, TypeError):
+                    pass  # अगर वैल्यू 'N/A' या खाली है, तो इसे None रहने दें
+
+                try:
+                    jy_pg_raw = str(row.get('Joining Year (PG) (Select N/A if Not Applicable)', '')).strip()
+                    if jy_pg_raw:
+                        joining_year_pg = int(float(jy_pg_raw))
+                except (ValueError, TypeError):
+                    pass # अगर वैल्यू 'N/A' या खाली है, तो इसे None रहने दें
+                # --- END: PROBLEM SOLVED ---
+
                 alumni_data = {
                     'name': str(row.get('Your Name ', '')).strip(),
                     'email': email,
                     'contact_number': contact_number,
                     'alternate_contact': str(row.get('Your Contact Number (Alternate)', '')).strip(),
                     'academic_association': str(row.get('Please Specify Your Academic Association With UCMS ', '')).strip(),
-                    'joining_year_ug': str(row.get('Joining Year (UG) ', '')).strip(),
-                    'joining_year_pg': str(row.get('Joining Year (PG) (Select N/A if Not Applicable)', '')).strip(),
+                    'joining_year_ug': joining_year_ug, # Updated
+                    'joining_year_pg': joining_year_pg, # Updated
                     'specialty': str(row.get('Specialty', '')).strip(),
                     'country': str(row.get('Which Country Are You Currently Working In? ', '')).strip(),
                     'state': str(row.get('Which State/UT Are You Currently Working In (If in India)? \n(Select N/A if Outside India)', '')).strip(),
@@ -149,12 +163,10 @@ def import_alumni_from_excel():
                     'is_verified': True
                 }
                 
-                # डेटाबेस में नया एलुमनाई ऑब्जेक्ट बनाएं
                 Alumni.objects.create(**alumni_data)
                 imported_count += 1
 
             except Exception as e:
-                # अगर किसी पंक्ति में कोई अप्रत्याशित एरर आती है, तो उसे प्रिंट करें और आगे बढ़ें
                 print(f"❌ Error importing row {index + 2}: {e}")
                 continue
 

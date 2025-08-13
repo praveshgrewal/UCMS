@@ -7,7 +7,7 @@ from django.core.validators import RegexValidator
 ACADEMIC_ASSOC_CHOICES = [
     ('UG', 'UG'),
     ('PG', 'PG'),
-    ('UG_PG', 'UG and PG'),
+    ('UG_PG', 'UG and PG','Both UG and PG'),
 ]
 
 

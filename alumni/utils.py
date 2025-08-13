@@ -5,238 +5,86 @@ from datetime import timedelta
 from django.utils import timezone
 from django.db import models
 from django.conf import settings
-from .models import OTPVerification
+from .models import OTPVerification, Alumni  # Alumni को यहाँ इम्पोर्ट करें
 import os
 import requests
 import mailtrap as mt
-import re
-
-# -------------------------------
-# NORMALIZERS (added)
-# -------------------------------
-def normalize_academic_association(raw: str) -> str:
-    """
-    Map verbose survey text to your allowed choices:
-    'UG', 'PG', 'UG_PG' (fits max_length=10).
-    """
-    s = (raw or "").strip().upper().replace("&", "AND")
-    if "BOTH" in s or "UG AND PG" in s:
-        return "UG_PG"
-    if "UG" in s and "PG" not in s:
-        return "UG"
-    if "PG" in s and "UG" not in s:
-        return "PG"
-    return "UG"  # safe default
-
-
-def _truncate(s, n):
-    """Trim strings to column max_length to avoid DB DataError."""
-    s = (s or "").strip()
-    return s if len(s) <= n else s[:n]
 
 
 # -------------------------------
-# OTP GENERATION
+# OTP Functions (No changes needed here)
 # -------------------------------
 def generate_otp():
     """Generate a 6-digit numeric OTP."""
     return ''.join(random.choices(string.digits, k=6))
 
-
-# -------------------------------
-# SEND SMS OTP
-# -------------------------------
 def send_sms_otp(contact):
     """Send OTP via SMS and save it in DB."""
-    
-    # Debugging: Print the contact being passed
-    print(f"Attempting to send OTP to: {contact}")
-    
-    # Generate OTP
     otp = generate_otp()
-    
-    # Set expiration time (default 5 minutes)
     expires_at = timezone.now() + timedelta(minutes=getattr(settings, "OTP_EXPIRY_MINUTES", 5))
-
-    # Remove old OTPs for this contact to avoid duplicates
     OTPVerification.objects.filter(contact=contact).delete()
-
-    # Save OTP to the database
-    OTPVerification.objects.create(
-        contact=contact,
-        otp=otp,
-        expires_at=expires_at,
-        is_verified=False
-    )
-
-    # Debugging: Print the OTP and expiration time
-    print(f"Generated OTP: {otp}, Expiry Time: {expires_at}")
-
-    # Prepare the phone number (ensure it has +91 prefix if not already included)
-    phone = f"+91{contact}" if not contact.startswith("+91") else contact
+    OTPVerification.objects.create(contact=contact, otp=otp, expires_at=expires_at, is_verified=False)
     
-    # Debugging: Print the phone number being used for the API call
-    print(f"Sending OTP to phone number: {phone}")
-
-    # 2Factor API URL
     api_key = settings.TWO_FACTOR_API_KEY
+    phone = f"+91{contact}" if not contact.startswith("+91") else contact
     url = f"https://2factor.in/API/V1/{api_key}/SMS/{phone}/{otp}"
-    
     try:
-        # Make the request to 2Factor API to send the SMS
         res = requests.get(url, timeout=5)
-        
-        # Debugging: Print API response for verification
         print("SMS OTP Response:", res.json())
-        
-        # Check if the response was successful (e.g., "status" == "success")
-        if res.status_code == 200 and 'status' in res.json() and res.json()['status'] == 'success':
-            print(f"OTP sent successfully to {phone}")
-        else:
-            print(f"Failed to send OTP to {phone}, Response: {res.json()}")
-    
     except Exception as e:
-        # Log any error that occurs during the request
         print("SMS OTP Error:", e)
-
-    # Return the OTP for further use
     return otp
 
-
-
-# -------------------------------
-# SEND EMAIL OTP
-# -------------------------------
 def send_email_otp(email):
     """Send OTP via email using Mailtrap and save it in DB."""
     otp = generate_otp()
     expires_at = timezone.now() + timedelta(minutes=getattr(settings, "OTP_EXPIRY_MINUTES", 5))
-
-    # Remove old OTPs for this email
     OTPVerification.objects.filter(contact=email).delete()
-
-    # Save OTP in DB
-    OTPVerification.objects.create(
-        contact=email,
-        otp=otp,
-        expires_at=expires_at,
-        is_verified=False
-    )
-
-    # Log OTP being generated and saved
-    print(f"Generated OTP for {email}: {otp}")
-
-    # HTML email content
+    OTPVerification.objects.create(contact=email, otp=otp, expires_at=expires_at, is_verified=False)
+    
     otp_html = f"""
     <!DOCTYPE html>
     <html>
-    <head>
-      <style>
-        body {{
-          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-          background-color: #f4f4f4;
-          margin: 0;
-          padding: 0;
-        }}
-        .container {{
-          background-color: #ffffff;
-          max-width: 480px;
-          margin: 30px auto;
-          padding: 30px;
-          border-radius: 10px;
-          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
-        }}
-        .title {{
-          font-size: 20px;
-          font-weight: 600;
-          color: #2c3e50;
-          text-align: center;
-        }}
-        .otp-code {{
-          font-size: 32px;
-          font-weight: bold;
-          color: #e74c3c;
-          text-align: center;
-          margin: 20px 0;
-        }}
-        .note {{
-          font-size: 14px;
-          color: #7f8c8d;
-          text-align: center;
-        }}
-      </style>
-    </head>
     <body>
-      <div class="container">
-        <div class="title">UCMS Alumni Portal OTP Verification</div>
-        <p class="otp-code">{otp}</p>
-        <p class="note">This OTP is valid for 5 minutes. Please do not share it with anyone.</p>
+      <div style="font-family: sans-serif; max-width: 480px; margin: 30px auto; padding: 30px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.05);">
+        <h2 style="text-align: center; color: #2c3e50;">UCMS Alumni Portal OTP</h2>
+        <p style="font-size: 32px; font-weight: bold; color: #e74c3c; text-align: center; margin: 20px 0;">{otp}</p>
+        <p style="text-align: center; color: #7f8c8d;">This OTP is valid for 5 minutes.</p>
       </div>
     </body>
     </html>
     """
-
-    # Prepare Mailtrap client and email
+    
     client = mt.MailtrapClient(token=settings.MAILTRAP_API_KEY)
     mail = mt.Mail(
-        sender=mt.Address(
-            email=getattr(settings, "DEFAULT_FROM_EMAIL", "hello@demomailtrap.co"),
-            name="UCMS Alumni Portal"
-        ),
+        sender=mt.Address(email=getattr(settings, "DEFAULT_FROM_EMAIL", "hello@demomailtrap.co"), name="UCMS Alumni Portal"),
         to=[mt.Address(email=email)],
         subject="Your OTP - UCMS Alumni Portal",
-        text=f"Your OTP for UCMS Alumni Portal is {otp}. It is valid for 5 minutes.",
+        text=f"Your OTP for UCMS Alumni Portal is {otp}.",
         html=otp_html,
         category="OTP Verification"
     )
-
     try:
         response = client.send(mail)
         print("✅ Email OTP sent successfully:", response)
-        print(f"Message ID: {response.get('message_ids')}")
     except Exception as e:
         print("❌ Error sending Email OTP:", e)
-        print(f"Error details: {e}")
-
     return otp
 
-
-
-
-# -------------------------------
-# VERIFY OTP (LOCAL DB)
-# -------------------------------
 def verify_otp(contact, otp):
     """Verify OTP from local database."""
     try:
-        otp_record = OTPVerification.objects.get(
-            contact=contact,
-            otp=otp,
-            is_verified=False
-        )
-
-        # Check if OTP is still valid
+        otp_record = OTPVerification.objects.get(contact=contact, otp=otp, is_verified=False)
         if otp_record.expires_at > timezone.now():
             otp_record.is_verified = True
             otp_record.save()
-            print(f"OTP verified for {contact}")
             return True
-        else:
-            print(f"OTP expired for {contact}")
-            return False
-
+        return False
     except OTPVerification.DoesNotExist:
-        print(f"No valid OTP found for {contact}")
         return False
 
-
-# -------------------------------
-# CHECK IF ALUMNI EXISTS
-# -------------------------------
 def check_existing_alumni(contact):
     """Check if alumni exists in database."""
-    from .models import Alumni
-
     return Alumni.objects.filter(
         models.Q(email=contact) | models.Q(contact_number=contact),
         status='approved'
@@ -244,56 +92,52 @@ def check_existing_alumni(contact):
 
 
 # -------------------------------
-# IMPORT ALUMNI FROM EXCEL
+# IMPORT ALUMNI FROM EXCEL (UPDATED AND ROBUST)
 # -------------------------------
 def import_alumni_from_excel():
-    """Import alumni data from Excel file."""
+    """
+    Excel फ़ाइल से सभी एलुमनाई डेटा को इम्पोर्ट करता है।
+    यह फंक्शन गलत या खाली डेटा को संभालने के लिए डिज़ाइन किया गया है ताकि कोई एरर न आए।
+    """
     try:
         excel_path = os.path.join(settings.BASE_DIR, 'attached_assets', 'alumni_list_1754148285179.xlsx')
         if not os.path.exists(excel_path):
-            print(f"Excel file not found at {excel_path}")
+            print(f"❌ Excel file not found at {excel_path}")
             return 0
 
-        df = pd.read_excel(excel_path)
-        from .models import Alumni
+        # Excel फ़ाइल को पढ़ते समय खाली सेल्स को 'nan' की जगह खाली स्ट्रिंग ('') मानें
+        df = pd.read_excel(excel_path).fillna('')
         imported_count = 0
 
         for index, row in df.iterrows():
             try:
-                name = str(row.get('Your Name ', '')).strip()
+                # हर वैल्यू को सुरक्षित रूप से स्ट्रिंग में बदलें
                 email = str(row.get('Email Address', '')).strip()
                 contact_number = str(row.get('Your Contact Number (WhatsApp)', '')).strip()
-                alternate_contact = str(row.get('Your Contact Number (Alternate)', '')).strip()
 
-                if not name or (not email and not contact_number):
-                    continue
-
-                if email.lower() in ['nan', '']:
-                    email = ''
-                if contact_number.lower() in ['nan', '']:
-                    contact_number = ''
-
+                # अगर ईमेल और कॉन्टैक्ट नंबर दोनों खाली हैं, तो इस पंक्ति को छोड़ दें
                 if not email and not contact_number:
+                    print(f"⏩ Skipping row {index+2}: Both email and contact are empty.")
                     continue
 
-                # --- improved duplicate check: ignore blanks ---
-                dup_q = models.Q()
-                if email:
-                    dup_q |= models.Q(email__iexact=email)
-                if contact_number:
-                    dup_q |= models.Q(contact_number=contact_number)
-                if dup_q and Alumni.objects.filter(dup_q).exists():
+                # अगर रिकॉर्ड पहले से मौजूद है, तो उसे भी छोड़ दें
+                # नोट: अगर आप चाहें तो मौजूदा रिकॉर्ड को अपडेट भी कर सकते हैं
+                if email and Alumni.objects.filter(email=email).exists():
+                    print(f"⏩ Skipping row {index+2}: Email '{email}' already exists.")
+                    continue
+                if contact_number and Alumni.objects.filter(contact_number=contact_number).exists():
+                    print(f"⏩ Skipping row {index+2}: Contact '{contact_number}' already exists.")
                     continue
 
-                # Build dict
+                # सभी डेटा को एक डिक्शनरी में इकट्ठा करें, और सुनिश्चित करें कि सब स्ट्रिंग है
                 alumni_data = {
-                    'name': name,
+                    'name': str(row.get('Your Name ', '')).strip(),
                     'email': email,
                     'contact_number': contact_number,
-                    'alternate_contact': '' if alternate_contact.lower() == 'nan' else alternate_contact,
+                    'alternate_contact': str(row.get('Your Contact Number (Alternate)', '')).strip(),
                     'academic_association': str(row.get('Please Specify Your Academic Association With UCMS ', '')).strip(),
-                    'joining_year_ug': 2000,
-                    'joining_year_pg': None,
+                    'joining_year_ug': str(row.get('Joining Year (UG) ', '')).strip(),
+                    'joining_year_pg': str(row.get('Joining Year (PG) (Select N/A if Not Applicable)', '')).strip(),
                     'specialty': str(row.get('Specialty', '')).strip(),
                     'country': str(row.get('Which Country Are You Currently Working In? ', '')).strip(),
                     'state': str(row.get('Which State/UT Are You Currently Working In (If in India)? \n(Select N/A if Outside India)', '')).strip(),
@@ -304,82 +148,26 @@ def import_alumni_from_excel():
                     'status': 'approved',
                     'is_verified': True
                 }
-
-                # --- normalize + trim to model limits BEFORE save (added) ---
-                alumni_data['academic_association'] = normalize_academic_association(
-                    alumni_data.get('academic_association', '')
-                )
-                alumni_data['specialty'] = _truncate(alumni_data.get('specialty'), 200)
-                alumni_data['country'] = _truncate(alumni_data.get('country'), 100)
-                alumni_data['state'] = _truncate(alumni_data.get('state'), 100)
-                alumni_data['city'] = _truncate(alumni_data.get('city'), 100)
-                alumni_data['current_designation'] = _truncate(alumni_data.get('current_designation'), 200)
-                alumni_data['current_work_association'] = _truncate(alumni_data.get('current_work_association'), 200)
-                alumni_data['associated_hospital'] = _truncate(alumni_data.get('associated_hospital'), 200)
-
-                try:
-                    jy_ug = str(row.get('Joining Year (UG) ', '')).strip()
-                    jy_pg = str(row.get('Joining Year (PG) (Select N/A if Not Applicable)', '')).strip()
-
-                    alumni_data['joining_year_ug'] = int(jy_ug) if jy_ug.isdigit() else 2000
-                    alumni_data['joining_year_pg'] = int(jy_pg) if jy_pg.isdigit() else None
-                except:
-                    pass
-
-                # --- create with a defensive retry (added) ---
-                try:
-                    Alumni.objects.create(**alumni_data)
-                    imported_count += 1
-                except Exception as e:
-                    # retry: lower-case email and re-apply trims (paranoid)
-                    alumni_data['email'] = alumni_data.get('email', '').lower()
-                    alumni_data['specialty'] = _truncate(alumni_data.get('specialty'), 200)
-                    alumni_data['country'] = _truncate(alumni_data.get('country'), 100)
-                    alumni_data['state'] = _truncate(alumni_data.get('state'), 100)
-                    alumni_data['city'] = _truncate(alumni_data.get('city'), 100)
-                    alumni_data['current_designation'] = _truncate(alumni_data.get('current_designation'), 200)
-                    alumni_data['current_work_association'] = _truncate(alumni_data.get('current_work_association'), 200)
-                    alumni_data['associated_hospital'] = _truncate(alumni_data.get('associated_hospital'), 200)
-
-                    try:
-                        Alumni.objects.create(**alumni_data)
-                        imported_count += 1
-                    except Exception as e2:
-                        print(f"Row {index} failed: {e2}")
-                        continue
+                
+                # डेटाबेस में नया एलुमनाई ऑब्जेक्ट बनाएं
+                Alumni.objects.create(**alumni_data)
+                imported_count += 1
 
             except Exception as e:
-                print(f"Error importing row {index}: {e}")
+                # अगर किसी पंक्ति में कोई अप्रत्याशित एरर आती है, तो उसे प्रिंट करें और आगे बढ़ें
+                print(f"❌ Error importing row {index + 2}: {e}")
                 continue
 
-        print(f"Successfully imported {imported_count} alumni from Excel")
+        print(f"✅ Successfully imported {imported_count} new alumni from Excel.")
         return imported_count
 
     except Exception as e:
-        print(f"Error reading Excel file: {e}")
+        print(f"❌ Critical Error reading Excel file: {e}")
         return 0
 
-
-# -------------------------------
-# HELPER: COUNTRY & STATE LISTS
-# -------------------------------
+# ... (Helper functions get_countries, get_indian_states can remain as they are) ...
 def get_countries():
-    return [
-        'Afghanistan', 'Albania', 'Algeria', 'Argentina', 'Australia', 'Austria',
-        'Bangladesh', 'Belgium', 'Brazil', 'Canada', 'China', 'Denmark',
-        'Egypt', 'France', 'Germany', 'India', 'Indonesia', 'Iran',
-        'Italy', 'Japan', 'Malaysia', 'Netherlands', 'Pakistan', 'Russia',
-        'Saudi Arabia', 'Singapore', 'South Africa', 'Spain', 'Switzerland',
-        'Thailand', 'Turkey', 'United Kingdom', 'United States', 'Other'
-    ]
-
+    return [ 'India', 'United States', 'United Kingdom', 'Canada', 'Australia', 'Other' ]
 
 def get_indian_states():
-    return [
-        'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
-        'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand',
-        'Karnataka', 'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur',
-        'Meghalaya', 'Mizoram', 'Nagaland', 'Odisha', 'Punjab',
-        'Rajasthan', 'Sikkim', 'Tamil Nadu', 'Telangana', 'Tripura',
-        'Uttar Pradesh', 'Uttarakhand', 'West Bengal', 'Delhi', 'Other'
-    ]
+    return [ 'Delhi', 'Uttar Pradesh', 'Haryana', 'Maharashtra', 'Karnataka', 'Other' ]

@@ -26,7 +26,7 @@ class Alumni(models.Model):
     
     # Academic Information
     academic_association = models.CharField(
-        max_length=300,
+        max_length=20,
         choices=ACADEMIC_ASSOC_CHOICES
     )
     # Make UG optional so "PG only" is possible

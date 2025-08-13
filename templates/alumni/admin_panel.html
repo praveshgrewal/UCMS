@@ -525,8 +525,9 @@ function renderAlumniGrid(alumniList) {
                     <div class="detail-row"><div class="detail-item full-width"><i class="fas fa-hospital"></i><span>${alumni.current_work_association || 'N/A'}</span></div></div>
                 </div>
                 <div class="alumni-actions">
- <button type="button" class="action-btn edit" onclick="editAlumni(${alumni.id})">
-        <i class="fas fa-edit"></i><span>Edit</span>
+<button type="button" class="btn btn-outline-primary d-flex align-items-center gap-2 shadow-sm px-3" onclick="editAlumni(${alumni.id})">
+        <i class="fas fa-edit"></i>
+        <span>Edit</span>
     </button>
                    
                 </div>

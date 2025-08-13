@@ -9,6 +9,30 @@ from .models import OTPVerification
 import os
 import requests
 import mailtrap as mt
+import re
+
+# -------------------------------
+# NORMALIZERS (added)
+# -------------------------------
+def normalize_academic_association(raw: str) -> str:
+    """
+    Map verbose survey text to your allowed choices:
+    'UG', 'PG', 'UG_PG' (fits max_length=10).
+    """
+    s = (raw or "").strip().upper().replace("&", "AND")
+    if "BOTH" in s or "UG AND PG" in s:
+        return "UG_PG"
+    if "UG" in s and "PG" not in s:
+        return "UG"
+    if "PG" in s and "UG" not in s:
+        return "PG"
+    return "UG"  # safe default
+
+
+def _truncate(s, n):
+    """Trim strings to column max_length to avoid DB DataError."""
+    s = (s or "").strip()
+    return s if len(s) <= n else s[:n]
 
 
 # -------------------------------
@@ -252,11 +276,16 @@ def import_alumni_from_excel():
                 if not email and not contact_number:
                     continue
 
-                if Alumni.objects.filter(
-                    models.Q(email=email) | models.Q(contact_number=contact_number)
-                ).exists():
+                # --- improved duplicate check: ignore blanks ---
+                dup_q = models.Q()
+                if email:
+                    dup_q |= models.Q(email__iexact=email)
+                if contact_number:
+                    dup_q |= models.Q(contact_number=contact_number)
+                if dup_q and Alumni.objects.filter(dup_q).exists():
                     continue
 
+                # Build dict
                 alumni_data = {
                     'name': name,
                     'email': email,
@@ -276,6 +305,18 @@ def import_alumni_from_excel():
                     'is_verified': True
                 }
 
+                # --- normalize + trim to model limits BEFORE save (added) ---
+                alumni_data['academic_association'] = normalize_academic_association(
+                    alumni_data.get('academic_association', '')
+                )
+                alumni_data['specialty'] = _truncate(alumni_data.get('specialty'), 200)
+                alumni_data['country'] = _truncate(alumni_data.get('country'), 100)
+                alumni_data['state'] = _truncate(alumni_data.get('state'), 100)
+                alumni_data['city'] = _truncate(alumni_data.get('city'), 100)
+                alumni_data['current_designation'] = _truncate(alumni_data.get('current_designation'), 200)
+                alumni_data['current_work_association'] = _truncate(alumni_data.get('current_work_association'), 200)
+                alumni_data['associated_hospital'] = _truncate(alumni_data.get('associated_hospital'), 200)
+
                 try:
                     jy_ug = str(row.get('Joining Year (UG) ', '')).strip()
                     jy_pg = str(row.get('Joining Year (PG) (Select N/A if Not Applicable)', '')).strip()
@@ -285,8 +326,27 @@ def import_alumni_from_excel():
                 except:
                     pass
 
-                Alumni.objects.create(**alumni_data)
-                imported_count += 1
+                # --- create with a defensive retry (added) ---
+                try:
+                    Alumni.objects.create(**alumni_data)
+                    imported_count += 1
+                except Exception as e:
+                    # retry: lower-case email and re-apply trims (paranoid)
+                    alumni_data['email'] = alumni_data.get('email', '').lower()
+                    alumni_data['specialty'] = _truncate(alumni_data.get('specialty'), 200)
+                    alumni_data['country'] = _truncate(alumni_data.get('country'), 100)
+                    alumni_data['state'] = _truncate(alumni_data.get('state'), 100)
+                    alumni_data['city'] = _truncate(alumni_data.get('city'), 100)
+                    alumni_data['current_designation'] = _truncate(alumni_data.get('current_designation'), 200)
+                    alumni_data['current_work_association'] = _truncate(alumni_data.get('current_work_association'), 200)
+                    alumni_data['associated_hospital'] = _truncate(alumni_data.get('associated_hospital'), 200)
+
+                    try:
+                        Alumni.objects.create(**alumni_data)
+                        imported_count += 1
+                    except Exception as e2:
+                        print(f"Row {index} failed: {e2}")
+                        continue
 
             except Exception as e:
                 print(f"Error importing row {index}: {e}")

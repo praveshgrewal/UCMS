@@ -26,13 +26,13 @@ class Alumni(models.Model):
     
     # Academic Information
     academic_association = models.CharField(
-        max_length=20,
+        max_length=100,
         choices=ACADEMIC_ASSOC_CHOICES
     )
     # Make UG optional so "PG only" is possible
     joining_year_ug = models.IntegerField(null=True, blank=True)
     joining_year_pg = models.IntegerField(null=True, blank=True)
-    specialty = models.CharField(max_length=300)
+    specialty = models.CharField(max_length=200)
     
     # Location
     country = models.CharField(max_length=100)

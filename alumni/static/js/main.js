@@ -506,7 +506,7 @@ function setupPhotoUpload() {
   
       const fileSizeKB = file.size / 1024;
       if (fileSizeKB > maxSizeKB) {
-        alert('Image size must be under 300 KB');
+        alert("Image size must be under 300 KB, Just search on Google for 'compress image to 200 KB.' Open any website from the results, upload your photo, click Compress, then download the optimized image and upload it here.");
         photoInput.value = '';
         return;
       }

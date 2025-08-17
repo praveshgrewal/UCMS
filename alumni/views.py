@@ -254,8 +254,8 @@ def resend_otp_view(request):
 
 def verify_registration_otp_view(request):
     if request.method == 'POST':
-        phone_otp = request.POST.get('phoneOtp')
-        email_otp = request.POST.get('emailOtp')
+        phone_otp = (request.POST.get('phoneOtp') or '').strip()
+        email_otp = (request.POST.get('emailOtp') or '').strip()
         reg_id = request.session.get('pending_registration_id')
 
         try:
@@ -264,54 +264,66 @@ def verify_registration_otp_view(request):
             messages.error(request, "Session expired. Please register again.")
             return redirect('alumni:register')
 
-        # Verify Phone OTP
-        phone_valid = False
-        try:
-            phone_otp_record = OTPVerification.objects.get(
-                contact=alumni.contact_number, 
-                otp=phone_otp,
-                expires_at__gt=timezone.now(), 
-                is_verified=False
-            )
-            phone_valid = True
-        except OTPVerification.DoesNotExist:
-            pass
-        
-        # Verify Email OTP
-        email_valid = False
-        try:
-            email_otp_record = OTPVerification.objects.get(
-                contact=alumni.email, 
-                otp=email_otp,
-                expires_at__gt=timezone.now(), 
-                is_verified=False
-            )
-            email_valid = True
-        except OTPVerification.DoesNotExist:
-            pass
+        require_phone = bool(alumni.contact_number)
+        require_email = bool(alumni.email)
+
+        phone_valid = not require_phone  # if not required, treat as already valid
+        email_valid = not require_email
+
+        # Phone OTP check (only if phone exists)
+        if require_phone:
+            try:
+                rec = OTPVerification.objects.get(
+                    contact=alumni.contact_number,
+                    otp=phone_otp,
+                    expires_at__gt=timezone.now(),
+                    is_verified=False,
+                )
+                phone_valid = True
+            except OTPVerification.DoesNotExist:
+                phone_valid = False
+
+        # Email OTP check (only if email exists)
+        if require_email:
+            try:
+                rec = OTPVerification.objects.get(
+                    contact=alumni.email,
+                    otp=email_otp,
+                    expires_at__gt=timezone.now(),
+                    is_verified=False,
+                )
+                email_valid = True
+            except OTPVerification.DoesNotExist:
+                email_valid = False
 
         if phone_valid and email_valid:
-            # Mark both OTPs as verified to prevent reuse
-            phone_otp_record.is_verified = True
-            phone_otp_record.save()
-            
-            email_otp_record.is_verified = True
-            email_otp_record.save()
+            # Mark used OTPs as verified (only for channels present)
+            if require_phone and phone_otp:
+                OTPVerification.objects.filter(
+                    contact=alumni.contact_number, otp=phone_otp
+                ).update(is_verified=True)
+            if require_email and email_otp:
+                OTPVerification.objects.filter(
+                    contact=alumni.email, otp=email_otp
+                ).update(is_verified=True)
 
             alumni.is_verified = True
-            alumni.save()
-            
-            messages.success(request, "The information provided will be verified within 72 hours, you can come back later to Log-In.")
+            alumni.save(update_fields=['is_verified'])
+
+            messages.success(
+                request,
+                "The information provided will be verified within 72 hours, you can come back later to Log-In."
+            )
             return redirect('alumni:login')
 
         messages.error(request, "Invalid or expired OTP(s). Please try again.")
-        # Render the registration page again, but keep the user on step 2
         return render(request, 'alumni/register.html', {
             'form': AlumniRegistrationForm(instance=alumni),
             'step': 2,
             'contact': alumni.contact_number,
             'email': alumni.email
         })
+
 
 
 @login_required

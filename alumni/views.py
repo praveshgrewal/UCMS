@@ -134,9 +134,10 @@ def verify_otp_view(request):
 
 def register_view(request):
     """
-    POST: validate/save (create or update a pending record) and send OTPs, OR
-          if an approved profile already exists, just send OTPs for that profile
-          and proceed to Step 2 (no redirect to login).
+    POST: validate/save and send OTPs.
+         - If an APPROVED profile with same email/phone exists, create a NEW pending row
+           from the submitted data so admins can review it.
+         - Otherwise create/update a pending/rejected row as before.
     GET : render the form.
     Always return JSON for POST so the frontend can parse it.
     """
@@ -145,7 +146,6 @@ def register_view(request):
         return render(request, 'alumni/register.html', {'form': form})
 
     try:
-        from django.db.models import Q
         email = (request.POST.get('email') or '').strip()
         phone = (request.POST.get('contact_number') or '').strip()
 
@@ -158,37 +158,51 @@ def register_view(request):
                 .first()
             )
 
-        # ---------- CASE A: Approved record already exists ----------
-        # Do NOT create/update the record; just send OTP(s) and proceed to Step 2.
+        # ---------- CASE A: An APPROVED profile exists for this email/phone ----------
+        # Create a NEW pending record from submitted data so it appears in admin review.
         if existing and existing.status == 'approved':
-            logger.info("[register_view] approved duplicate -> using existing id=%s for OTP step", existing.id)
+            form = AlumniRegistrationForm(request.POST, request.FILES)
+            if not form.is_valid():
+                logger.info("[register_view] form invalid (approved duplicate): %s", dict(form.errors.items()))
+                return JsonResponse({'success': False, 'errors': dict(form.errors.items())}, status=200)
+
+            new_alumni = form.save(commit=False)
+            new_alumni.status = 'pending'
+            new_alumni.is_verified = False
+            new_alumni.save()
+            logger.info("[register_view] created NEW pending (dup) id=%s email=%s phone=%s",
+                        new_alumni.id, new_alumni.email, new_alumni.contact_number)
+
             sms_ok = False
             email_ok = False
             try:
-                if existing.contact_number:
-                    send_sms_otp(existing.contact_number)
+                if new_alumni.contact_number:
+                    send_sms_otp(new_alumni.contact_number)
                     sms_ok = True
             except Exception:
-                logger.exception("[register_view] SMS error (approved duplicate)")
+                logger.exception("[register_view] SMS error (approved duplicate new row)")
 
             try:
-                if existing.email:
-                    send_email_otp(existing.email)
+                if new_alumni.email:
+                    send_email_otp(new_alumni.email)
                     email_ok = True
             except Exception:
-                logger.exception("[register_view] Email error (approved duplicate)")
+                logger.exception("[register_view] Email error (approved duplicate new row)")
 
-            request.session['pending_registration_id'] = existing.id
+            request.session['pending_registration_id'] = new_alumni.id
+
             return JsonResponse({
                 'success': True,
                 'message': 'OTP sent. Proceed to verification.',
-                'contact_number': existing.contact_number or '',
-                'email': existing.email or '',
+                'contact_number': new_alumni.contact_number or '',
+                'email': new_alumni.email or '',
                 'sms_sent': sms_ok,
                 'email_sent': email_ok,
+                'pending_id': new_alumni.id,   # <- helps you confirm in UI/logs
             }, status=200)
 
-        # ---------- CASE B: New / pending / rejected ----------
+        # ---------- CASE B: New / Pending / Rejected ----------
+        # If there's a pending/rejected record, update it; otherwise create new.
         instance = existing if (existing and existing.status in ['pending', 'rejected']) else None
         form = AlumniRegistrationForm(request.POST, request.FILES, instance=instance)
 
@@ -229,11 +243,14 @@ def register_view(request):
             'email': alumni.email or '',
             'sms_sent': sms_ok,
             'email_sent': email_ok,
+            'pending_id': alumni.id,     # <- helps you confirm in UI/logs
         }, status=200)
 
     except Exception:
         logger.exception("[register_view] unexpected error")
+        # Return JSON so the frontend won’t crash on res.json()
         return JsonResponse({'success': False, 'message': 'server_error'}, status=500)
+
 
 
 
@@ -490,6 +507,7 @@ def admin_panel_view(request):
         'approved_alumni': approved_alumni,
         'can_take_actions': is_admin(request.user),  # admins can act (see admin_action_view)
     })
+
 
 
 @login_required

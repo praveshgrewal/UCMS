@@ -24,7 +24,6 @@ ALLOWED_HOSTS = [
     if host.strip()
 ]
 
-
 # App Platform / reverse proxy headers
 USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
@@ -122,7 +121,9 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 MEDIA_URL = "/media/"
-MEDIA_ROOT = BASE_DIR / "media"
+# >>> Only required change: point to the real uploads path in App Platform
+from pathlib import Path as _Path  # (safe alias)
+MEDIA_ROOT = _Path(os.getenv("MEDIA_ROOT", "/app/media"))
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
@@ -162,7 +163,6 @@ CSRF_TRUSTED_ORIGINS = list(filter(None, [
 # Email (you use Mailtrap API; SMTP vars optional/unused)
 # ---------------------------------------------------------------------
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "hello@ucmsalumni.com")
-# Optional SMTP (not needed if you only use Mailtrap API)
 EMAIL_HOST = os.getenv("EMAIL_HOST", "")
 EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
 EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
@@ -176,8 +176,6 @@ EMAIL_USE_SSL = os.getenv("EMAIL_USE_SSL", "False") == "True"
 OTP_EXPIRY_MINUTES = int(os.getenv("OTP_EXPIRY_MINUTES", "5"))
 MAILTRAP_API_KEY = os.getenv("MAILTRAP_API_KEY", "")
 TWO_FACTOR_API_KEY = os.getenv("TWO_FACTOR_API_KEY", "")
-
-
 
 # ---------------------------------------------------------------------
 # Logging (to App Platform logs)

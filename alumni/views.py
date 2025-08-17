@@ -17,6 +17,9 @@ from .utils import send_sms_otp, send_email_otp, verify_otp, check_existing_alum
 # from .views import is_admin, is_super_admin 
 
 from django.utils import timezone
+import logging
+logger = logging.getLogger(__name__)
+
 
 # keep these helpers at top of alumni/views.py
 def is_admin(user):
@@ -128,90 +131,88 @@ def verify_otp_view(request):
 
 def register_view(request):
     """
-    Step 1: Create/Update a pending registration and send OTPs.
-    - Reuse and UPDATE the latest pending/rejected record for the same email/phone.
-    - If already approved, block re-registration.
-    - Always validate the form and save fields so contact/email are present.
-    - Return JSON the frontend expects.
+    POST: validate & save the form (create or update a pending record) and send OTPs.
+    GET : render the form.
+    Always return JSON for POST so the frontend can parse it.
     """
     if request.method != 'POST':
         form = AlumniRegistrationForm()
         return render(request, 'alumni/register.html', {'form': form})
 
-    # Read raw values first (used to find an existing record)
-    email = (request.POST.get('email') or '').strip()
-    phone = (request.POST.get('contact_number') or '').strip()
+    try:
+        # ----- locate a potentially existing record by submitted identifiers -----
+        email = (request.POST.get('email') or '').strip()
+        phone = (request.POST.get('contact_number') or '').strip()
 
-    existing = None
-    if email or phone:
-        existing = (
-            Alumni.objects
-            .filter(Q(email__iexact=email) | Q(contact_number=phone))
-            .order_by('-created_at')
-            .first()
-        )
+        existing = None
+        if email or phone:
+            existing = (
+                Alumni.objects
+                .filter(Q(email__iexact=email) | Q(contact_number=phone))
+                .order_by('-created_at')
+                .first()
+            )
 
-    # Already approved? Ask them to log in.
-    if existing and existing.status == 'approved':
+        # Prevent re-registration of approved profiles
+        if existing and existing.status == 'approved':
+            logger.info("[register_view] approved duplicate: %s / %s", email, phone)
+            return JsonResponse({
+                'success': False,
+                'errors': {
+                    'email': ['This email/phone is already registered. Please log in.']
+                }
+            }, status=200)
+
+        # Bind the form. If there is a pending/rejected record, UPDATE it with new data.
+        instance = existing if (existing and existing.status in ['pending', 'rejected']) else None
+        form = AlumniRegistrationForm(request.POST, request.FILES, instance=instance)
+
+        if not form.is_valid():
+            logger.info("[register_view] form invalid: %s", dict(form.errors.items()))
+            return JsonResponse({'success': False, 'errors': dict(form.errors.items())}, status=200)
+
+        alumni = form.save(commit=False)
+        alumni.status = 'pending'
+        alumni.is_verified = False
+        alumni.save()
+        logger.info("[register_view] saved pending alumni id=%s email=%s phone=%s",
+                    alumni.id, alumni.email, alumni.contact_number)
+
+        # ----- send OTPs (don’t fail the whole flow if one channel fails) -----
+        sms_ok = False
+        email_ok = False
+
+        try:
+            if alumni.contact_number:
+                logger.info("[register_view] sending SMS OTP to %s", alumni.contact_number)
+                send_sms_otp(alumni.contact_number)
+                sms_ok = True
+        except Exception as e:
+            logger.exception("[register_view] SMS error")
+
+        try:
+            if alumni.email:
+                logger.info("[register_view] sending Email OTP to %s", alumni.email)
+                send_email_otp(alumni.email)
+                email_ok = True
+        except Exception as e:
+            logger.exception("[register_view] Email error")
+
+        request.session['pending_registration_id'] = alumni.id
+
         return JsonResponse({
-            'success': False,
-            'errors': {
-                'email': ['This email/phone is already registered. Please log in.']
-            }
+            'success': True,
+            'message': 'OTP sent. Proceed to verification.',
+            'contact_number': alumni.contact_number or '',
+            'email': alumni.email or '',
+            'sms_sent': sms_ok,
+            'email_sent': email_ok,
         }, status=200)
 
-    # Always bind the form to POST data; if we have an existing pending/rejected,
-    # update THAT instance with the new data so contact/email are saved.
-    form = AlumniRegistrationForm(
-        request.POST,
-        request.FILES,
-        instance=(existing if (existing and existing.status in ['pending', 'rejected']) else None)
-    )
-
-    if not form.is_valid():
-        return JsonResponse({'success': False, 'errors': dict(form.errors.items())}, status=200)
-
-    alumni = form.save(commit=False)
-    # Ensure status flags are correct for a new/updated registration
-    if not existing or existing.status not in ['pending', 'rejected']:
-        alumni.status = 'pending'
-    else:
-        alumni.status = 'pending'
-    alumni.is_verified = False
-    alumni.save()
-
-    # Send OTPs (guard with try so one failure doesn't break the response)
-    sms_ok = False
-    email_ok = False
-
-    try:
-        if alumni.contact_number:
-            print(f"[register_view] Sending SMS OTP to {alumni.contact_number}")
-            send_sms_otp(alumni.contact_number)
-            sms_ok = True
-    except Exception as e:
-        print(f"[register_view] SMS Error: {e}")
-
-    try:
-        if alumni.email:
-            print(f"[register_view] Sending Email OTP to {alumni.email}")
-            send_email_otp(alumni.email)
-            email_ok = True
-    except Exception as e:
-        print(f"[register_view] Email Error: {e}")
-
-    # store id for step-2 verification
-    request.session['pending_registration_id'] = alumni.id
-
-    # IMPORTANT: return the non-empty values so the JS shows the correct OTP boxes
-    return JsonResponse({
-        'success': True,
-        'message': 'OTP sent. Proceed to verification.',
-        'contact_number': alumni.contact_number or '',
-        'email': alumni.email or '',
-        'sms_sent': sms_ok,
-        'email_sent': email_ok,
-    }, status=200)
+    except Exception:
+        logger.exception("[register_view] unexpected error")
+        # Return JSON so the frontend won’t crash on res.json()
+        return JsonResponse({'success': False, 'message': 'server_error'}, status=500)
 
 
 

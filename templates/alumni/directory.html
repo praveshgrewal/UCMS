@@ -9,7 +9,9 @@
         <!-- Directory Header -->
         <div class="directory-header">
             <div class="header-content">
-                <h1 class="directory-title">
+                <h1 class="directory-title">    <img src="{{ request.safe_photo_url }}" alt="{{ request.name }}">
+
+
                     <i class="fas fa-users"></i>
                     Alumni Directory
                 </h1>
@@ -156,7 +158,9 @@
                         <div class="profile-card-header">
                             <div class="profile-avatar">
                                 {% if item.alumni.photo %}
-                                    <img src="{{ item.alumni.photo.url }}" alt="{{ item.alumni.name }}">
+                                        <img src="{{ request.safe_photo_url }}" alt="{{ request.name }}">
+
+
                                 {% else %}
                                     <div class="avatar-placeholder">
                                         <i class="fas fa-user-graduate"></i>
@@ -225,7 +229,9 @@
                         <div class="list-item-content">
                             <div class="list-avatar">
                                 {% if item.alumni.photo %}
-                                    <img src="{{ item.alumni.photo.url }}" alt="{{ item.alumni.name }}">
+                                        <img src="{{ request.safe_photo_url }}" alt="{{ request.name }}">
+
+
                                 {% else %}
                                     <div class="avatar-placeholder">
                                         <i class="fas fa-user-graduate"></i>

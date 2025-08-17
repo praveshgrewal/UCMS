@@ -127,12 +127,6 @@ def verify_otp_view(request):
 
 
 def register_view(request):
-    """
-    Step 1: Create/Update a pending registration and send OTPs.
-    - If an approved profile exists: block re-registration and ask to log in.
-    - If a pending/rejected record exists: update it with new POSTed data.
-    - Return JSON so the frontend can switch to Step 2 (OTP).
-    """
     if request.method != 'POST':
         form = AlumniRegistrationForm()
         return render(request, 'alumni/register.html', {'form': form})
@@ -140,68 +134,57 @@ def register_view(request):
     email = (request.POST.get('email') or '').strip()
     phone = (request.POST.get('contact_number') or '').strip()
 
-    # Find the latest record by email/phone (if any)
     existing = None
     if email or phone:
         existing = (
             Alumni.objects
             .filter(Q(email__iexact=email) | Q(contact_number=phone))
-            .order_by('-created_at', '-id')
+            .order_by('-created_at')
             .first()
         )
 
-    # Already approved? Ask them to log in instead of re-registering
+    # Already approved? Ask them to log in.
     if existing and existing.status == 'approved':
         return JsonResponse({
             'success': False,
-            'errors': {
-                'email': ['This email/phone is already registered. Please log in.']
-            }
-        }, status=200)  # keep 200 so JS shows inline error
+            'errors': {'email': ['This email/phone is already registered. Please log in.']}
+        }, status=200)
 
-    # If there is an existing pending/rejected row, update it; else create new
-    instance_to_use = existing if (existing and existing.status in ['pending', 'rejected']) else None
-    form = AlumniRegistrationForm(request.POST, request.FILES, instance=instance_to_use)
+    # 🔧 FIXED: if an existing pending/rejected record is found, UPDATE IT with the new POST,
+    # not just reuse it unchanged.
+    if existing and existing.status in ['pending', 'rejected']:
+        form = AlumniRegistrationForm(request.POST, request.FILES, instance=existing)
+        if not form.is_valid():
+            return JsonResponse({'success': False, 'errors': dict(form.errors.items())}, status=200)
+        alumni = form.save()  # now contact/email are up-to-date
+        alumni.status = 'pending'
+        alumni.is_verified = False
+        alumni.save(update_fields=['status', 'is_verified'])
+    else:
+        form = AlumniRegistrationForm(request.POST, request.FILES)
+        if not form.is_valid():
+            return JsonResponse({'success': False, 'errors': dict(form.errors.items())}, status=200)
+        alumni = form.save(commit=False)
+        alumni.status = 'pending'
+        alumni.is_verified = False
+        alumni.save()
 
-    if not form.is_valid():
-        # Helpful server-side log for debugging
-        try:
-            print("register_view: form invalid ->", dict(form.errors.items()))
-        except Exception:
-            pass
-        return JsonResponse({
-            'success': False,
-            'errors': dict(form.errors.items())
-        }, status=200)  # keep 200 so the frontend renders field errors
-
-    alumni = form.save(commit=False)
-    alumni.status = 'pending'
-    alumni.is_verified = False
-    alumni.save()
-
-    # Fire OTPs (don’t fail the whole request if a sender throws)
+    # Send OTPs
     sms_ok = False
     email_ok = False
-
     try:
         if alumni.contact_number:
-            print(f"register_view: sending SMS OTP to {alumni.contact_number}")
             send_sms_otp(alumni.contact_number)
             sms_ok = True
     except Exception as e:
-        print(f"SMS Error (register): {e}")
-        sms_ok = False
-
+        print(f"SMS Error: {e}")
     try:
         if alumni.email:
-            print(f"register_view: sending Email OTP to {alumni.email}")
             send_email_otp(alumni.email)
             email_ok = True
     except Exception as e:
-        print(f"Email Error (register): {e}")
-        email_ok = False
+        print(f"Email Error: {e}")
 
-    # Save ID in session for Step 2 verification
     request.session['pending_registration_id'] = alumni.id
 
     return JsonResponse({

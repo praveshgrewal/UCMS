@@ -129,9 +129,9 @@ def verify_otp_view(request):
 def register_view(request):
     """
     Step 1: Create/Update a pending registration and send OTPs.
-    - Reuse the latest pending record for the same email/phone.
-    - If already approved, block re-registration.
-    - IMPORTANT: return 200 with success:false for invalid form so the frontend can show field errors.
+    - If an approved profile exists: block re-registration and ask to log in.
+    - If a pending/rejected record exists: update it with new POSTed data.
+    - Return JSON so the frontend can switch to Step 2 (OTP).
     """
     if request.method != 'POST':
         form = AlumniRegistrationForm()
@@ -140,64 +140,68 @@ def register_view(request):
     email = (request.POST.get('email') or '').strip()
     phone = (request.POST.get('contact_number') or '').strip()
 
+    # Find the latest record by email/phone (if any)
     existing = None
     if email or phone:
         existing = (
             Alumni.objects
             .filter(Q(email__iexact=email) | Q(contact_number=phone))
-            .order_by('-created_at')
+            .order_by('-created_at', '-id')
             .first()
         )
 
-    # Already approved? Ask them to log in.
+    # Already approved? Ask them to log in instead of re-registering
     if existing and existing.status == 'approved':
         return JsonResponse({
             'success': False,
             'errors': {
                 'email': ['This email/phone is already registered. Please log in.']
             }
-        }, status=200)  # <-- 200 so JS can render error inline
+        }, status=200)  # keep 200 so JS shows inline error
 
-    # If a pending/rejected record exists, update it; otherwise create new
-    if existing and existing.status in ['pending', 'rejected']:
-        alumni = existing
-    else:
-        form = AlumniRegistrationForm(
-            request.POST,
-            request.FILES,
-            instance=(existing if existing else None)
-        )
+    # If there is an existing pending/rejected row, update it; else create new
+    instance_to_use = existing if (existing and existing.status in ['pending', 'rejected']) else None
+    form = AlumniRegistrationForm(request.POST, request.FILES, instance=instance_to_use)
 
-        if not form.is_valid():
-            return JsonResponse({
-                'success': False,
-                'errors': dict(form.errors.items())
-            }, status=200)  # <-- 200 so the frontend shows field errors
+    if not form.is_valid():
+        # Helpful server-side log for debugging
+        try:
+            print("register_view: form invalid ->", dict(form.errors.items()))
+        except Exception:
+            pass
+        return JsonResponse({
+            'success': False,
+            'errors': dict(form.errors.items())
+        }, status=200)  # keep 200 so the frontend renders field errors
 
-        alumni = form.save(commit=False)
-        alumni.status = 'pending'
-        alumni.is_verified = False
-        alumni.save()
+    alumni = form.save(commit=False)
+    alumni.status = 'pending'
+    alumni.is_verified = False
+    alumni.save()
 
-    # Send OTPs (do not fail the whole request if one sender throws)
+    # Fire OTPs (don’t fail the whole request if a sender throws)
     sms_ok = False
     email_ok = False
+
     try:
         if alumni.contact_number:
+            print(f"register_view: sending SMS OTP to {alumni.contact_number}")
             send_sms_otp(alumni.contact_number)
             sms_ok = True
     except Exception as e:
-        print(f"SMS Error: {e}")
+        print(f"SMS Error (register): {e}")
         sms_ok = False
 
     try:
         if alumni.email:
+            print(f"register_view: sending Email OTP to {alumni.email}")
             send_email_otp(alumni.email)
             email_ok = True
     except Exception as e:
-        print(f"Email Error: {e}")
+        print(f"Email Error (register): {e}")
         email_ok = False
 
+    # Save ID in session for Step 2 verification
     request.session['pending_registration_id'] = alumni.id
 
     return JsonResponse({
@@ -211,29 +215,38 @@ def register_view(request):
 
 
 
+
 @csrf_exempt
 def resend_otp_view(request):
-    if request.method == 'POST':
-        try:
-            data = json.loads(request.body)
-            contact = data.get('contact')
-            otp_type = data.get('type')
+    """
+    JSON endpoint to resend phone/email OTP during Step 2.
+    Body: {"contact":"...", "type":"phone"|"email"}
+    """
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'message': 'Invalid request method.'}, status=405)
 
-            if not contact or not otp_type:
-                return JsonResponse({'success': False, 'message': 'Invalid request data.'}, status=400)
-            
-            if otp_type == 'phone':
-                send_sms_otp(contact)
-            elif otp_type == 'email':
-                send_email_otp(contact)
-            else:
-                return JsonResponse({'success': False, 'message': 'Invalid OTP type.'}, status=400)
+    try:
+        data = json.loads(request.body.decode('utf-8'))
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'message': 'Invalid JSON.'}, status=400)
 
-            return JsonResponse({'success': True, 'message': f'{otp_type.capitalize()} OTP resent successfully.'})
-        except json.JSONDecodeError:
-            return JsonResponse({'success': False, 'message': 'Invalid JSON.'}, status=400)
-    
-    return JsonResponse({'success': False, 'message': 'Invalid request method.'}, status=405)
+    contact = (data.get('contact') or '').strip()
+    otp_type = (data.get('type') or '').strip().lower()
+
+    if not contact or otp_type not in {'phone', 'email'}:
+        return JsonResponse({'success': False, 'message': 'Invalid request data.'}, status=400)
+
+    try:
+        if otp_type == 'phone':
+            print(f"resend_otp_view: resending SMS OTP to {contact}")
+            send_sms_otp(contact)
+        else:
+            print(f"resend_otp_view: resending Email OTP to {contact}")
+            send_email_otp(contact)
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': f'Error resending OTP: {e}'}, status=500)
+
+    return JsonResponse({'success': True, 'message': f'{otp_type.capitalize()} OTP resent successfully.'})
 
 
 

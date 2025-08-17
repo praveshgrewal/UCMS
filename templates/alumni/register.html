@@ -254,8 +254,9 @@
         <i class="fas fa-shield-alt"></i>
       </div>
       <h3 class="verification-title">Verify Your Details</h3>
-      <p class="verification-subtitle">
-        We've sent OTP codes to your registered contact details
+      <p class="verification-subtitle" id="otpSubtitle">
+        We’ve sent OTP codes to your registered contact details.
+        <span id="otpChannels" class="d-block mt-2"></span>
       </p>
 
       <div class="otp-inputs">
@@ -306,7 +307,7 @@
         <!-- OTP Timer -->
         <div class="verification-timer">
           <i class="fas fa-clock"></i>
-          <span id="otpTimer">OTP expires in 5:00</span>
+          <span id="otpTimer" aria-live="polite">OTP expires in 5:00</span>
         </div>
       </div>
     </div>
@@ -337,6 +338,13 @@
     </div>
   </div>
 </div>
+
+<!-- Small styles for OTP channel chips -->
+<style>
+  .otp-badge{display:inline-block;padding:4px 8px;border-radius:999px;font-size:12px;margin-right:6px;background:#eef2ff}
+  .otp-badge i{margin-right:4px}
+  .text-muted-sm{color:#6c757d;font-size:12px}
+</style>
 
 <script>
 /* ------------ small helpers ------------ */
@@ -401,8 +409,30 @@ function toggleYearFields() {
   }
 }
 
-/* ---- OTP UI visibility (core fix) ---- */
-function updateOtpVisibility() {
+/* ---------- OTP channel helpers (NEW) ---------- */
+function maskPhone(p) {
+  const d = (p || '').replace(/\D/g,'');
+  if (!d) return '';
+  return d.length <= 4 ? d : `••••••${d.slice(-4)}`;
+}
+function maskEmail(e) {
+  if (!e) return '';
+  const parts = e.split('@'); const u = parts[0] || ''; const d = parts[1] || '';
+  if (!d) return '•••';
+  const u2 = u.length <= 2 ? (u[0] + '•') : (u[0] + '•'.repeat(Math.max(1,u.length-2)) + u.slice(-1));
+  return `${u2}@${d}`;
+}
+function renderOtpChannels({phone, email, smsSent=true, emailSent=true}) {
+  const el = document.getElementById('otpChannels');
+  if (!el) return;
+  const chips = [];
+  if (phone && smsSent) chips.push(`<span class="otp-badge"><i class="fas fa-sms"></i> ${maskPhone(phone)}</span>`);
+  if (email && emailSent) chips.push(`<span class="otp-badge"><i class="fas fa-envelope"></i> ${maskEmail(email)}</span>`);
+  el.innerHTML = chips.length ? chips.join('') : `<span class="text-muted-sm">No channel sent yet. Try Resend.</span>`;
+}
+
+/* ---- OTP UI visibility (updated to show badges) ---- */
+function updateOtpVisibility(smsSent = true, emailSent = true) {
   const phoneGroup = document.querySelector('.otp-group[data-type="phone"]');
   const emailGroup = document.querySelector('.otp-group[data-type="email"]');
   const phoneInput = document.querySelector('input[name="phoneOtp"]');
@@ -416,12 +446,15 @@ function updateOtpVisibility() {
 
   if (phoneInput) phoneInput.required = usingPhone;
   if (emailInput) emailInput.required = usingEmail;
+
+  renderOtpChannels({ phone: window.contact, email: window.email, smsSent, emailSent });
 }
 
 /* ---- OTP timer + resend ---- */
 let otpInterval = null;
 let otpCountdownSeconds = 300;
 let resendCooldownTimer = null;
+let resendTickTimer = null;
 
 function updateOtpTimer() {
   const otpTimer = document.getElementById('otpTimer');
@@ -445,13 +478,29 @@ function startOTPTimer() {
 function disableResendButtons(disable = true) {
   document.querySelectorAll('.resend-btn').forEach(btn => {
     btn.disabled = disable;
-    btn.textContent = disable ? 'Wait...' : 'Resend';
+    btn.dataset.disabled = disable ? '1' : '0';
+    if (!disable) btn.textContent = 'Resend';
+    if (disable && btn.textContent.toLowerCase() === 'resend') btn.textContent = 'Wait...';
   });
 }
 function setResendCooldown(seconds = 30) {
   disableResendButtons(true);
+  let left = seconds;
+
   if (resendCooldownTimer) clearTimeout(resendCooldownTimer);
-  resendCooldownTimer = setTimeout(() => disableResendButtons(false), seconds * 1000);
+  if (resendTickTimer) clearInterval(resendTickTimer);
+
+  resendTickTimer = setInterval(() => {
+    document.querySelectorAll('.resend-btn').forEach(btn => {
+      btn.textContent = `Resend in ${left}s`;
+    });
+    left--;
+    if (left < 0) clearInterval(resendTickTimer);
+  }, 1000);
+
+  resendCooldownTimer = setTimeout(() => {
+    disableResendButtons(false);
+  }, seconds * 1000);
 }
 async function resendOTP(type) {
   const contactToSend = (type === 'phone') ? window.contact : window.email;
@@ -459,6 +508,10 @@ async function resendOTP(type) {
     alert('Contact information not found. Please go back to the form.');
     return;
   }
+  const btn = document.querySelector(`.resend-btn[data-type="${type}"]`);
+  const prev = btn ? btn.innerHTML : '';
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Sending…'; }
+
   const csrftoken = getCookie('csrftoken');
   try {
     const res = await fetch("{% url 'alumni:resend_otp' %}", {
@@ -467,12 +520,21 @@ async function resendOTP(type) {
       body: JSON.stringify({ contact: contactToSend, type })
     });
     const data = await res.json();
+    if (!res.ok || data.success === false) {
+      alert(data.message || 'Failed to resend OTP.');
+      disableResendButtons(false);
+      if (btn) btn.innerHTML = prev || 'Resend';
+      return;
+    }
+
     alert(data.message || 'OTP resent.');
     setResendCooldown(30);
   } catch (err) {
     console.error(err);
     alert('Failed to resend OTP. Try again.');
     disableResendButtons(false);
+  } finally {
+    if (btn) btn.innerHTML = prev || 'Resend';
   }
 }
 
@@ -496,7 +558,7 @@ document.addEventListener('DOMContentLoaded', function () {
   if (serverStep === '2') {
     window.contact = (document.getElementById('serverPhone')?.value || '').trim();
     window.email   = (document.getElementById('serverEmail')?.value || '').trim();
-    updateOtpVisibility();
+    updateOtpVisibility(true, true);
     startOTPTimer();
     setResendCooldown(30);
   }
@@ -507,6 +569,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
   form.addEventListener('submit', async function (event) {
     event.preventDefault();
+
+    // PRECHECK: need at least phone or email
+    const phoneVal = (form.querySelector('[name="contact_number"]')?.value || '').trim();
+    const emailVal = (form.querySelector('[name="email"]')?.value || '').trim();
+    if (!phoneVal && !emailVal) {
+      alert('Please provide at least a phone number or an email address.');
+      return;
+    }
 
     const formData = new FormData(form);
     const submitBtn = form.querySelector('button[type="submit"]');
@@ -528,7 +598,16 @@ document.addEventListener('DOMContentLoaded', function () {
       }
 
       if (data && data.success) {
-        // show Step 2
+        // NEW: if backend switched to LOGIN flow (approved duplicate), redirect to login OTP verify page
+        if (data.login_flow) {
+          if (data.otp_sent === false) {
+            alert('Your account exists, but we could not send an OTP right now. Please try again or use the login page.');
+          }
+          window.location.href = data.redirect_url || "{% url 'alumni:verify_otp' %}";
+          return;
+        }
+
+        // Otherwise REGISTRATION OTP step
         document.getElementById('step1').style.display = 'none';
         document.getElementById('step2').style.display = 'block';
         const step2 = document.querySelector('.progress-step[data-step="2"]');
@@ -538,8 +617,12 @@ document.addEventListener('DOMContentLoaded', function () {
         window.contact = (data.contact_number || '').trim();
         window.email   = (data.email || '').trim();
 
-        // show/hide OTP blocks appropriately
-        updateOtpVisibility();
+        // show/hide OTP blocks appropriately + badges for sent channels
+        updateOtpVisibility(data.sms_sent !== false, data.email_sent !== false);
+
+        if (data.sms_sent === false && data.email_sent === false) {
+          alert('We could not send an OTP right now. Please use Resend or try the other channel.');
+        }
 
         // restart timers
         startOTPTimer();
@@ -560,8 +643,4 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 });
 </script>
-
-
-
-
 {% endblock %}

@@ -2,6 +2,10 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.core.validators import RegexValidator
 
+# NEW imports for the safe fallback URL (non-breaking)
+from django.core.files.storage import default_storage
+from django.templatetags.static import static
+
 
 # New: canonical choices used by forms & admin
 ACADEMIC_ASSOC_CHOICES = [
@@ -65,6 +69,22 @@ class Alumni(models.Model):
     def __str__(self):
         return self.name
 
+    # NEW: Always-return-a-working-image URL (no DB change)
+    @property
+    def safe_photo_url(self) -> str:
+        """
+        Use uploaded photo if it physically exists in storage; otherwise
+        return the static default image at alumni/static/images/default.png
+        (referenced as 'images/default.png' via the staticfiles finder).
+        """
+        try:
+            if self.photo and default_storage.exists(self.photo.name):
+                return self.photo.url
+        except Exception:
+            pass
+        return static("images/default.png")
+
+
 class OTPVerification(models.Model):
     contact = models.CharField(max_length=50)  # Can be email or phone
     otp = models.CharField(max_length=6)
@@ -74,6 +94,7 @@ class OTPVerification(models.Model):
     
     def __str__(self):
         return f"OTP for {self.contact}"
+
 
 class AdminUser(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)

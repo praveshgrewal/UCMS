@@ -236,64 +236,94 @@
           </div>
 
           <!-- Step 2: OTP Verification -->
-          <div class="registration-step" id="step2" style="display:none;">
-            <form method="post" action="{% url 'alumni:verify_registration_otp' %}">
-              {% csrf_token %}
-              <div class="verification-container">
-                <div class="verification-icon">
-                  <i class="fas fa-shield-alt"></i>
-                </div>
-                <h3 class="verification-title">Verify Your Details</h3>
-                <p class="verification-subtitle">
-                  We've sent OTP codes to your registered contact details
-                </p>
+<div
+  class="registration-step"
+  id="step2"
+  style="{% if step == 2 %}display:block;{% else %}display:none;{% endif %}"
+>
+  <form method="post" action="{% url 'alumni:verify_registration_otp' %}">
+    {% csrf_token %}
 
-                <div class="otp-inputs">
-                  <!-- Phone OTP -->
-                  <div class="otp-group form-group">
-                      <label class="modern-label">
-                          <i class="fas fa-phone"></i> Phone Verification
-                      </label>
-                      <div class="input-container otp-input-container">
-                          <input type="text" class="otp-input" name="phoneOtp" maxlength="6" placeholder="Enter OTP" required>
-                          <button type="button" class="resend-btn" data-type="phone">
-                              <i class="fas fa-redo"></i> Resend
-                          </button>
-                      </div>
-                  </div>
-                  
-                  <!-- Email OTP -->
-                  <div class="otp-group form-group">
-                      <label class="modern-label">
-                          <i class="fas fa-envelope"></i> Email Verification
-                      </label>
-                      <div class="input-container otp-input-container">
-                          <input type="text" class="otp-input" name="emailOtp" maxlength="6" placeholder="Enter OTP" required>
-                          <button type="button" class="resend-btn" data-type="email">
-                              <i class="fas fa-redo"></i> Resend
-                          </button>
-                      </div>
-                  </div>
+    <!-- These help JS know which OTPs to show if the page is server-rendered on step 2 -->
+    <input type="hidden" id="serverPhone" value="{{ contact|default:'' }}">
+    <input type="hidden" id="serverEmail" value="{{ email|default:'' }}">
+    <input type="hidden" id="serverStep"  value="{{ step|default:'' }}">
 
-                <!-- OTP Timer -->
-                <div class="verification-timer">
-                  <i class="fas fa-clock"></i>
-                  <span id="otpTimer">OTP expires in 5:00</span>
-                </div>
-              </div>
+    <div class="verification-container">
+      <div class="verification-icon">
+        <i class="fas fa-shield-alt"></i>
+      </div>
+      <h3 class="verification-title">Verify Your Details</h3>
+      <p class="verification-subtitle">
+        We've sent OTP codes to your registered contact details
+      </p>
 
-              <!-- Buttons -->
-              <div class="form-actions">
-                <button type="button" class="amazing-btn secondary" onclick="goBackToForm()">
-                  <i class="fas fa-arrow-left btn-icon"></i> Back to Form
-                </button>
-                <button type="submit" class="amazing-btn primary">
-                  <span class="btn-text">Complete Registration</span>
-                  <i class="fas fa-check btn-icon"></i>
-                </button>
-              </div>
-            </form>
+      <div class="otp-inputs">
+        <!-- Phone OTP -->
+        <div class="otp-group form-group" data-type="phone">
+          <label class="modern-label">
+            <i class="fas fa-phone"></i> Phone Verification
+          </label>
+          <div class="input-container otp-input-container">
+            <input
+              type="text"
+              class="otp-input"
+              name="phoneOtp"
+              maxlength="6"
+              inputmode="numeric"
+              pattern="[0-9]{6}"
+              placeholder="Enter 6-digit OTP"
+              autocomplete="one-time-code"
+            >
+            <button type="button" class="resend-btn" data-type="phone">
+              <i class="fas fa-redo"></i> Resend
+            </button>
           </div>
+        </div>
+
+        <!-- Email OTP -->
+        <div class="otp-group form-group" data-type="email">
+          <label class="modern-label">
+            <i class="fas fa-envelope"></i> Email Verification
+          </label>
+          <div class="input-container otp-input-container">
+            <input
+              type="text"
+              class="otp-input"
+              name="emailOtp"
+              maxlength="6"
+              inputmode="numeric"
+              pattern="[0-9]{6}"
+              placeholder="Enter 6-digit OTP"
+              autocomplete="one-time-code"
+            >
+            <button type="button" class="resend-btn" data-type="email">
+              <i class="fas fa-redo"></i> Resend
+            </button>
+          </div>
+        </div>
+
+        <!-- OTP Timer -->
+        <div class="verification-timer">
+          <i class="fas fa-clock"></i>
+          <span id="otpTimer">OTP expires in 5:00</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Buttons -->
+    <div class="form-actions">
+      <button type="button" class="amazing-btn secondary" onclick="goBackToForm()">
+        <i class="fas fa-arrow-left btn-icon"></i> Back to Form
+      </button>
+      <button type="submit" class="amazing-btn primary">
+        <span class="btn-text">Complete Registration</span>
+        <i class="fas fa-check btn-icon"></i>
+      </button>
+    </div>
+  </form>
+</div>
+
 
           <!-- Step 3: Success -->
           <div class="registration-step" id="step3" style="display:none;">
@@ -314,8 +344,6 @@ function goBackToForm() {
   document.getElementById('step2').style.display = 'none';
   document.getElementById('step1').style.display = 'block';
 }
-
-/* Read CSRF from cookie (safe for AJAX) */
 function getCookie(name) {
   const v = `; ${document.cookie}`;
   const parts = v.split(`; ${name}=`);
@@ -323,7 +351,7 @@ function getCookie(name) {
   return '';
 }
 
-/* Show/hide + enable/disable + required UG/PG year inputs based on association */
+/* UG/PG toggling */
 function toggleYearFields() {
   const assoc   = document.querySelector('[name="academic_association"]');
   const ugGroup = document.getElementById('group-joining-ug');
@@ -332,13 +360,8 @@ function toggleYearFields() {
   const pgField = document.querySelector('[name="joining_year_pg"]');
   if (!assoc || !ugGroup || !pgGroup || !ugField || !pgField) return;
 
-  // Normalize values (UG, PG, UG_PG). Also tolerate "UG and PG"
-  const v = (assoc.value || '')
-              .toUpperCase()
-              .replace(/&/g, 'AND')
-              .replace(/\s+/g, '_'); // "UG and PG" -> "UG_AND_PG"
+  const v = (assoc.value || '').toUpperCase().replace(/&/g, 'AND').replace(/\s+/g, '_');
 
-  // Reset visibility & constraints
   ugGroup.style.display = 'none';
   pgGroup.style.display = 'none';
   ugField.disabled = true; ugField.required = false;
@@ -358,165 +381,112 @@ function toggleYearFields() {
     ugField.disabled = false; ugField.required = true;
     pgField.disabled = false; pgField.required = true;
   } else {
-    // No/unknown selection → keep both hidden & cleared
     ugField.value = '';
     pgField.value = '';
   }
 }
 
-/* Render backend field errors under inputs */
-function displayFormErrors(errors, form) {
-  form.querySelectorAll('.error-message').forEach(el => el.remove());
-  for (const fieldName in errors) {
-    const msgs = errors[fieldName];
-    const field = form.querySelector(`[name="${fieldName}"]`);
-    if (!field) continue;
-    const holder = field.closest('.form-group') || field.parentElement || field;
-    holder.insertAdjacentHTML('beforeend',
-      `<div class="error-message text-danger mt-1">${msgs.join('<br>')}</div>`);
-  }
-}
-
-/* ------------ OTP visibility helpers (NEW) ------------ */
-function getOtpDom() {
-  const phoneGroup = document.querySelector('.otp-group .modern-label i.fa-phone')?.closest('.otp-group')
-                    || document.querySelector('.otp-group[data-type="phone"]') || null;
-  const emailGroup = document.querySelector('.otp-group .modern-label i.fa-envelope')?.closest('.otp-group')
-                    || document.querySelector('.otp-group[data-type="email"]') || null;
+/* ---- OTP UI visibility (core fix) ---- */
+function updateOtpVisibility() {
+  const phoneGroup = document.querySelector('.otp-group[data-type="phone"]');
+  const emailGroup = document.querySelector('.otp-group[data-type="email"]');
   const phoneInput = document.querySelector('input[name="phoneOtp"]');
   const emailInput = document.querySelector('input[name="emailOtp"]');
-  return { phoneGroup, emailGroup, phoneInput, emailInput };
-}
-
-/* Hide/show & set required based on available channels */
-function updateOtpVisibility() {
-  const { phoneGroup, emailGroup, phoneInput, emailInput } = getOtpDom();
 
   const usingPhone = !!(window.contact && String(window.contact).trim());
-  const usingEmail = !!(window.email && String(window.email).trim());
-
-  // Always clear "required" first to avoid browser blocking when only one channel exists
-  if (phoneInput) phoneInput.required = false;
-  if (emailInput) emailInput.required = false;
+  const usingEmail = !!(window.email   && String(window.email).trim());
 
   if (phoneGroup) phoneGroup.style.display = usingPhone ? '' : 'none';
   if (emailGroup) emailGroup.style.display = usingEmail ? '' : 'none';
 
-  // Then set required only for channels we actually sent OTP to
-  if (phoneInput && usingPhone) phoneInput.required = true;
-  if (emailInput && usingEmail) emailInput.required = true;
+  if (phoneInput) phoneInput.required = usingPhone;
+  if (emailInput) emailInput.required = usingEmail;
 }
 
-/* ------------ OTP timer + resend handling ------------ */
+/* ---- OTP timer + resend ---- */
 let otpInterval = null;
-let otpCountdownSeconds = 300; // 5 minutes
+let otpCountdownSeconds = 300;
 let resendCooldownTimer = null;
 
 function updateOtpTimer() {
   const otpTimer = document.getElementById('otpTimer');
   if (!otpTimer) return;
-
   const m = Math.floor(otpCountdownSeconds / 60);
   const s = otpCountdownSeconds % 60;
   otpTimer.textContent = `OTP expires in ${m}:${s < 10 ? '0' + s : s}`;
   otpCountdownSeconds--;
-
   if (otpCountdownSeconds < 0) {
     clearInterval(otpInterval);
     otpTimer.textContent = 'OTP has expired.';
-    // When OTP expires, allow immediate resend
     disableResendButtons(false);
   }
 }
-
 function startOTPTimer() {
   if (otpInterval) clearInterval(otpInterval);
-  otpCountdownSeconds = 300; // reset to 5:00
+  otpCountdownSeconds = 300;
   otpInterval = setInterval(updateOtpTimer, 1000);
-  updateOtpTimer(); // immediate first render
+  updateOtpTimer();
 }
-
 function disableResendButtons(disable = true) {
   document.querySelectorAll('.resend-btn').forEach(btn => {
     btn.disabled = disable;
     btn.textContent = disable ? 'Wait...' : 'Resend';
   });
 }
-
 function setResendCooldown(seconds = 30) {
-  // disable both while cooling down (simpler UX)
   disableResendButtons(true);
   if (resendCooldownTimer) clearTimeout(resendCooldownTimer);
   resendCooldownTimer = setTimeout(() => disableResendButtons(false), seconds * 1000);
 }
-
 async function resendOTP(type) {
   const contactToSend = (type === 'phone') ? window.contact : window.email;
   if (!contactToSend) {
     alert('Contact information not found. Please go back to the form.');
     return;
   }
-
   const csrftoken = getCookie('csrftoken');
-
   try {
     const res = await fetch("{% url 'alumni:resend_otp' %}", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-CSRFToken": csrftoken
-      },
+      headers: {"Content-Type": "application/json", "X-CSRFToken": csrftoken},
       body: JSON.stringify({ contact: contactToSend, type })
     });
     const data = await res.json();
     alert(data.message || 'OTP resent.');
-    // After a resend, restart the 30s cooldown (UX) but keep overall 5-min expiry running
     setResendCooldown(30);
   } catch (err) {
     console.error(err);
     alert('Failed to resend OTP. Try again.');
-    // If it failed, lift the cooldown so the user can retry
     disableResendButtons(false);
   }
 }
 
 /* ------------ page init ------------ */
 document.addEventListener('DOMContentLoaded', function () {
-  // Wire Academic Association -> UG/PG visibility
+  // UG/PG toggling
   const assocSelect = document.querySelector('[name="academic_association"]');
   if (assocSelect) {
     assocSelect.addEventListener('change', toggleYearFields);
-    toggleYearFields(); // initial state on load
+    toggleYearFields();
   }
 
   // Hook resend buttons
   const resendPhoneBtn = document.querySelector('.resend-btn[data-type="phone"]');
   const resendEmailBtn = document.querySelector('.resend-btn[data-type="email"]');
-  if (resendPhoneBtn) {
-    resendPhoneBtn.addEventListener('click', () => {
-      setResendCooldown(30);  // immediate cooldown feedback
-      resendOTP('phone');
-    });
+  if (resendPhoneBtn) resendPhoneBtn.addEventListener('click', () => { setResendCooldown(30); resendOTP('phone'); });
+  if (resendEmailBtn) resendEmailBtn.addEventListener('click', () => { setResendCooldown(30); resendOTP('email'); });
+
+  // If server rendered Step 2 (after error/refresh), populate and show correct OTP fields:
+  const serverStep = (document.getElementById('serverStep')?.value || '').trim();
+  if (serverStep === '2') {
+    window.contact = (document.getElementById('serverPhone')?.value || '').trim();
+    window.email   = (document.getElementById('serverEmail')?.value || '').trim();
+    updateOtpVisibility();
+    startOTPTimer();
+    setResendCooldown(30);
   }
-  if (resendEmailBtn) {
-    resendEmailBtn.addEventListener('click', () => {
-      setResendCooldown(30);
-      resendOTP('email');
-    });
-  }
 
-  // Start OTP countdown & initial 30s cooldown for resend
-  startOTPTimer();
-  setResendCooldown(30);
-
-  // IMPORTANT: on load, remove "required" from both OTP inputs,
-  // then apply visibility/required based on channels (if available later)
-  const { phoneInput, emailInput } = getOtpDom();
-  if (phoneInput) phoneInput.required = false;
-  if (emailInput) emailInput.required = false;
-  updateOtpVisibility();
-
-  // AJAX submit for Step 1 → switches to Step 2 on success
+  // AJAX submit for Step 1 → swaps to Step 2
   const form = document.getElementById('registrationForm');
   if (!form) return;
 
@@ -536,20 +506,20 @@ document.addEventListener('DOMContentLoaded', function () {
       try { data = await res.json(); } catch (_) {}
 
       if (data && data.success) {
-        // move to step 2
+        // show Step 2
         document.getElementById('step1').style.display = 'none';
         document.getElementById('step2').style.display = 'block';
         const step2 = document.querySelector('.progress-step[data-step="2"]');
         if (step2) step2.classList.add('active');
 
-        // store for resend
-        window.contact = data.contact_number || '';
-        window.email   = data.email || '';
+        // set channels
+        window.contact = (data.contact_number || '').trim();
+        window.email   = (data.email || '').trim();
 
-        // NEW: adjust which OTP fields show + which are required
+        // NOW make OTP blocks visible correctly
         updateOtpVisibility();
 
-        // restart OTP timer + cooldown for the new codes
+        // restart timers
         startOTPTimer();
         setResendCooldown(30);
       } else if (data && data.errors) {
@@ -567,6 +537,7 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 });
 </script>
+
 
 
 {% endblock %}

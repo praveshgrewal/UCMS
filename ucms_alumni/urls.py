@@ -9,13 +9,13 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('alumni.urls')),
 
-    # serve media in production too (small sites) 👇
+    # Serve user-uploaded media in production (OK for small sites)
     re_path(r'^media/(?P<path>.*)$',
             django_static_serve,
             {'document_root': settings.MEDIA_ROOT}),
 ]
 
-# Optional: still serve static/media when DEBUG=True (local dev)
+# Optional: local dev convenience
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

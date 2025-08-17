@@ -134,7 +134,9 @@ def verify_otp_view(request):
 
 def register_view(request):
     """
-    POST: validate & save the form (create or update a pending record) and send OTPs.
+    POST: validate/save (create or update a pending record) and send OTPs, OR
+          if an approved profile already exists, just send OTPs for that profile
+          and proceed to Step 2 (no redirect to login).
     GET : render the form.
     Always return JSON for POST so the frontend can parse it.
     """
@@ -143,10 +145,7 @@ def register_view(request):
         return render(request, 'alumni/register.html', {'form': form})
 
     try:
-        # local import so this function is drop-in
-        from django.urls import reverse
-
-        # ----- locate a potentially existing record by submitted identifiers -----
+        from django.db.models import Q
         email = (request.POST.get('email') or '').strip()
         phone = (request.POST.get('contact_number') or '').strip()
 
@@ -159,38 +158,37 @@ def register_view(request):
                 .first()
             )
 
-        # If profile is already approved, switch to LOGIN OTP flow instead of re-registering
+        # ---------- CASE A: Approved record already exists ----------
+        # Do NOT create/update the record; just send OTP(s) and proceed to Step 2.
         if existing and existing.status == 'approved':
-            logger.info("[register_view] approved duplicate -> LOGIN FLOW: %s / %s", email, phone)
-
-            # Pick a single primary contact to keep the login OTP flow simple
-            primary_contact = (email or '').strip() or (phone or '').strip()
-
-            sent_ok = False
+            logger.info("[register_view] approved duplicate -> using existing id=%s for OTP step", existing.id)
+            sms_ok = False
+            email_ok = False
             try:
-                if primary_contact:
-                    if '@' in primary_contact:
-                        send_email_otp(primary_contact)
-                    else:
-                        send_sms_otp(primary_contact)
-                    sent_ok = True
+                if existing.contact_number:
+                    send_sms_otp(existing.contact_number)
+                    sms_ok = True
             except Exception:
-                logger.exception("[register_view] login OTP send failed")
+                logger.exception("[register_view] SMS error (approved duplicate)")
 
-            # Seed session for verify_otp_view
-            if primary_contact:
-                request.session['login_contact'] = primary_contact
-                request.session['alumni_id'] = existing.id
+            try:
+                if existing.email:
+                    send_email_otp(existing.email)
+                    email_ok = True
+            except Exception:
+                logger.exception("[register_view] Email error (approved duplicate)")
 
+            request.session['pending_registration_id'] = existing.id
             return JsonResponse({
                 'success': True,
-                'login_flow': True,
-                'message': 'Account already exists. We sent you a login OTP.',
-                'redirect_url': reverse('alumni:verify_otp'),
-                'otp_sent': sent_ok,
+                'message': 'OTP sent. Proceed to verification.',
+                'contact_number': existing.contact_number or '',
+                'email': existing.email or '',
+                'sms_sent': sms_ok,
+                'email_sent': email_ok,
             }, status=200)
 
-        # Bind the form. If there is a pending/rejected record, UPDATE it with new data.
+        # ---------- CASE B: New / pending / rejected ----------
         instance = existing if (existing and existing.status in ['pending', 'rejected']) else None
         form = AlumniRegistrationForm(request.POST, request.FILES, instance=instance)
 
@@ -205,13 +203,11 @@ def register_view(request):
         logger.info("[register_view] saved pending alumni id=%s email=%s phone=%s",
                     alumni.id, alumni.email, alumni.contact_number)
 
-        # ----- send OTPs (don’t fail the whole flow if one channel fails) -----
         sms_ok = False
         email_ok = False
 
         try:
             if alumni.contact_number:
-                logger.info("[register_view] sending SMS OTP to %s", alumni.contact_number)
                 send_sms_otp(alumni.contact_number)
                 sms_ok = True
         except Exception:
@@ -219,7 +215,6 @@ def register_view(request):
 
         try:
             if alumni.email:
-                logger.info("[register_view] sending Email OTP to %s", alumni.email)
                 send_email_otp(alumni.email)
                 email_ok = True
         except Exception:
@@ -238,7 +233,6 @@ def register_view(request):
 
     except Exception:
         logger.exception("[register_view] unexpected error")
-        # Return JSON so the frontend won’t crash on res.json()
         return JsonResponse({'success': False, 'message': 'server_error'}, status=500)
 
 
@@ -283,77 +277,94 @@ def resend_otp_view(request):
 # In your views.py, replace the verify_registration_otp_view with this:
 
 def verify_registration_otp_view(request):
-    if request.method == 'POST':
-        phone_otp = (request.POST.get('phoneOtp') or '').strip()
-        email_otp = (request.POST.get('emailOtp') or '').strip()
-        reg_id = request.session.get('pending_registration_id')
+    def _is_ajax(req):
+        return req.headers.get('x-requested-with') == 'XMLHttpRequest' or 'application/json' in req.headers.get('Accept','')
 
+    if request.method != 'POST':
+        # If someone GETs this URL, just go back to register
+        if _is_ajax(request):
+            return JsonResponse({'success': False, 'message': 'Invalid request method.'}, status=405)
+        return redirect('alumni:register')
+
+    phone_otp = (request.POST.get('phoneOtp') or '').strip()
+    email_otp = (request.POST.get('emailOtp') or '').strip()
+    reg_id = request.session.get('pending_registration_id')
+
+    try:
+        alumni = Alumni.objects.get(id=reg_id)
+    except Alumni.DoesNotExist:
+        if _is_ajax(request):
+            return JsonResponse({'success': False, 'message': 'Session expired. Please register again.'}, status=400)
+        messages.error(request, "Session expired. Please register again.")
+        return redirect('alumni:register')
+
+    require_phone = bool(alumni.contact_number)
+    require_email = bool(alumni.email)
+
+    phone_valid = not require_phone
+    email_valid = not require_email
+
+    from django.utils import timezone
+    if require_phone:
         try:
-            alumni = Alumni.objects.get(id=reg_id)
-        except Alumni.DoesNotExist:
-            messages.error(request, "Session expired. Please register again.")
-            return redirect('alumni:register')
-
-        require_phone = bool(alumni.contact_number)
-        require_email = bool(alumni.email)
-
-        phone_valid = not require_phone  # if not required, treat as already valid
-        email_valid = not require_email
-
-        # Phone OTP check (only if phone exists)
-        if require_phone:
-            try:
-                rec = OTPVerification.objects.get(
-                    contact=alumni.contact_number,
-                    otp=phone_otp,
-                    expires_at__gt=timezone.now(),
-                    is_verified=False,
-                )
-                phone_valid = True
-            except OTPVerification.DoesNotExist:
-                phone_valid = False
-
-        # Email OTP check (only if email exists)
-        if require_email:
-            try:
-                rec = OTPVerification.objects.get(
-                    contact=alumni.email,
-                    otp=email_otp,
-                    expires_at__gt=timezone.now(),
-                    is_verified=False,
-                )
-                email_valid = True
-            except OTPVerification.DoesNotExist:
-                email_valid = False
-
-        if phone_valid and email_valid:
-            # Mark used OTPs as verified (only for channels present)
-            if require_phone and phone_otp:
-                OTPVerification.objects.filter(
-                    contact=alumni.contact_number, otp=phone_otp
-                ).update(is_verified=True)
-            if require_email and email_otp:
-                OTPVerification.objects.filter(
-                    contact=alumni.email, otp=email_otp
-                ).update(is_verified=True)
-
-            alumni.is_verified = True
-            alumni.save(update_fields=['is_verified'])
-
-            messages.success(
-                request,
-                "The information provided will be verified within 72 hours, you can come back later to Log-In."
+            OTPVerification.objects.get(
+                contact=alumni.contact_number,
+                otp=phone_otp,
+                expires_at__gt=timezone.now(),
+                is_verified=False,
             )
-            return redirect('alumni:login')
+            phone_valid = True
+        except OTPVerification.DoesNotExist:
+            phone_valid = False
 
-        messages.error(request, "Invalid or expired OTP(s). Please try again.")
-        return render(request, 'alumni/register.html', {
-            'form': AlumniRegistrationForm(instance=alumni),
-            'step': 2,
-            'contact': alumni.contact_number,
-            'email': alumni.email
-        })
+    if require_email:
+        try:
+            OTPVerification.objects.get(
+                contact=alumni.email,
+                otp=email_otp,
+                expires_at__gt=timezone.now(),
+                is_verified=False,
+            )
+            email_valid = True
+        except OTPVerification.DoesNotExist:
+            email_valid = False
 
+    if phone_valid and email_valid:
+        # Mark OTPs as used
+        if require_phone and phone_otp:
+            OTPVerification.objects.filter(
+                contact=alumni.contact_number, otp=phone_otp
+            ).update(is_verified=True)
+        if require_email and email_otp:
+            OTPVerification.objects.filter(
+                contact=alumni.email, otp=email_otp
+            ).update(is_verified=True)
+
+        alumni.is_verified = True
+        alumni.save(update_fields=['is_verified'])
+
+        # --- AJAX path: stay on register.html and show Step 3
+        if _is_ajax(request):
+            return JsonResponse({'success': True, 'message': 'Verification complete.'})
+
+        # --- Non-AJAX fallback (old behavior)
+        messages.success(
+            request,
+            "The information provided will be verified within 72 hours, you can come back later to Log-In."
+        )
+        return redirect('alumni:login')
+
+    # Invalid/expired OTP(s)
+    if _is_ajax(request):
+        return JsonResponse({'success': False, 'message': 'Invalid or expired OTP(s).'}, status=400)
+
+    messages.error(request, "Invalid or expired OTP(s). Please try again.")
+    return render(request, 'alumni/register.html', {
+        'form': AlumniRegistrationForm(instance=alumni),
+        'step': 2,
+        'contact': alumni.contact_number,
+        'email': alumni.email
+    })
 
 
 @login_required

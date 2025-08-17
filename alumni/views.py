@@ -6,6 +6,8 @@ from django.contrib import messages
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.db.models import Q
+from django.conf import settings
+
 import json
 
 from .models import Alumni, AdminUser, OTPVerification
@@ -68,9 +70,8 @@ def send_otp_view(request):
 
 def verify_otp_view(request):
     """
-    Login OTP verification (separate from registration flow).
-    More defensive: handles missing alumni_id in session, falls back by contact,
-    and never 500s on expected user errors.
+    Login OTP verification (separate from registration).
+    Explicitly passes an auth backend to login() so the session sticks.
     """
     contact = request.session.get('login_contact')
     if not contact:
@@ -83,24 +84,19 @@ def verify_otp_view(request):
             messages.error(request, 'Please enter the 6-digit OTP.')
             return render(request, 'alumni/verify_otp.html', {'form': form, 'contact': contact})
 
-        otp = form.cleaned_data.get('otp', '').strip()
+        otp = (form.cleaned_data.get('otp') or '').strip()
 
         try:
-            # 1) Verify the OTP against our local store
+            # 1) Check OTP in our store
             if not verify_otp(contact, otp):
                 messages.error(request, 'Invalid or expired OTP. Please try again.')
                 return render(request, 'alumni/verify_otp.html', {'form': form, 'contact': contact})
 
-            # 2) Resolve the Alumni we intend to log in
-            alumni_id = request.session.get('alumni_id')
+            # 2) Resolve the Alumni
             alumni = None
+            alumni_id = request.session.get('alumni_id')
             if alumni_id:
-                try:
-                    alumni = Alumni.objects.get(id=alumni_id)
-                except Alumni.DoesNotExist:
-                    alumni = None
-
-            # Fallback: find by contact (email OR phone) among approved
+                alumni = Alumni.objects.filter(id=alumni_id).first()
             if alumni is None:
                 alumni = Alumni.objects.filter(
                     Q(email__iexact=contact) | Q(contact_number=contact),
@@ -111,11 +107,9 @@ def verify_otp_view(request):
                 messages.error(request, 'We could not find your profile. Please register first.')
                 return redirect('alumni:register')
 
-            # 3) Ensure there is a User to log in
+            # 3) Ensure there is a User
             user = getattr(alumni, 'user', None)
-
             if user is None:
-                # Try common usernames we may have used previously
                 user = User.objects.filter(username=contact).first()
                 if user is None and alumni.email:
                     user = User.objects.filter(username=alumni.email).first()
@@ -123,7 +117,6 @@ def verify_otp_view(request):
                     user = User.objects.filter(username=alumni.contact_number).first()
 
             if user is None:
-                # Create a new user with a unique username
                 base_username = contact or alumni.email or alumni.contact_number or (alumni.name or "user").replace(" ", "").lower()
                 username = base_username
                 i = 1
@@ -136,31 +129,35 @@ def verify_otp_view(request):
                     email=(contact if "@" in contact else (alumni.email or "")),
                     first_name=(alumni.name.split()[0] if alumni.name else "")
                 )
-                user.set_unusable_password()  # OTP-only auth
+                user.set_unusable_password()
                 user.save()
 
-            # 4) Link Alumni → User if not linked
+            # 4) Link Alumni → User
             if alumni.user_id != user.id:
                 alumni.user = user
                 alumni.save(update_fields=['user'])
 
-            # 5) Log in and clean session
-            login(request, user)
+            # 5) LOGIN: pass backend explicitly so session persists
+            backend = settings.AUTHENTICATION_BACKENDS[0]  # e.g. 'django.contrib.auth.backends.ModelBackend'
+            login(request, user, backend=backend)
+
+            # 6) Clean session + go to directory
             request.session.pop('login_contact', None)
             request.session.pop('alumni_id', None)
-
+            logger.info("OTP login OK for alumni_id=%s user_id=%s", alumni.id, user.id)
             return redirect('alumni:directory')
 
-        except Exception as e:
+        except Exception:
             logger.exception("[verify_otp_view] unexpected error during OTP login")
             messages.error(request, 'Something went wrong while verifying your OTP. Please try again.')
-            # Re-render the same page instead of 500
-            # (Do NOT expose internal error details to the user)
             return render(request, 'alumni/verify_otp.html', {'form': form, 'contact': contact})
 
-    # GET → show the form
+    # GET → show form
     form = OTPVerificationForm()
     return render(request, 'alumni/verify_otp.html', {'form': form, 'contact': contact})
+
+
+
 
 def register_view(request):
     """

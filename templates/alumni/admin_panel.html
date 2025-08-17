@@ -312,8 +312,7 @@
                         <div class="alumni-header">
                             <div class="alumni-avatar">
                                 {% if alumni.photo %}
-                                     <img src="{{ request.safe_photo_url }}" alt="{{ request.name }}">
-
+                                     <img src="{{ alumni.safe_photo_url }}" alt="{{ alumni.name }}">
                                 {% else %}
                                     <i class="fas fa-user-circle"></i>
                                 {% endif %}

@@ -44,7 +44,24 @@ def generate_otp():
 
 
 # -------------------------------
-# SEND SMS OTP
+# INTERNAL: PHONE NORMALIZER (added)
+# -------------------------------
+def _normalize_msisdn(contact: str) -> str:
+    """
+    Normalize to Indian MSISDN for 2Factor: digits only.
+    Returns 91XXXXXXXXXX (12 digits) when possible.
+    """
+    digits = re.sub(r"\D", "", str(contact or ""))
+    if len(digits) == 10:
+        return "91" + digits
+    if digits.startswith("91") and len(digits) == 12:
+        return digits
+    # Fall back to digits as-is (provider may reject; we still log/send)
+    return digits
+
+
+# -------------------------------
+# SEND SMS OTP  (UPDATED)
 # -------------------------------
 def send_sms_otp(contact):
     """Send OTP via SMS and save it in DB."""
@@ -52,6 +69,7 @@ def send_sms_otp(contact):
     otp = generate_otp()
     expires_at = timezone.now() + timedelta(minutes=getattr(settings, "OTP_EXPIRY_MINUTES", 5))
 
+    # Keep only one live OTP per contact
     OTPVerification.objects.filter(contact=contact).delete()
 
     OTPVerification.objects.create(
@@ -63,11 +81,18 @@ def send_sms_otp(contact):
 
     print(f"Generated OTP: {otp}, Expiry Time: {expires_at}")
 
-    phone = f"+91{contact}" if not str(contact).startswith("+91") else str(contact)
-    print(f"Sending OTP to phone number: {phone}")
+    # --- FIX: ensure digits-only MSISDN for 2Factor (no '+') ---
+    phone = _normalize_msisdn(contact)
+    print(f"Sending OTP to phone number (normalized): {phone}")
 
     api_key = settings.TWO_FACTOR_API_KEY
-    url = f"https://2factor.in/API/V1/{api_key}/SMS/{phone}/{otp}"
+
+    # Optional: support DLT template if provided via settings.TWO_FACTOR_TEMPLATE
+    template = getattr(settings, "TWO_FACTOR_TEMPLATE", "").strip()
+    if template:
+        url = f"https://2factor.in/API/V1/{api_key}/SMS/{phone}/{otp}/{template}"
+    else:
+        url = f"https://2factor.in/API/V1/{api_key}/SMS/{phone}/{otp}"
 
     try:
         res = requests.get(url, timeout=8)
@@ -78,22 +103,21 @@ def send_sms_otp(contact):
 
         print("SMS OTP Response:", payload)
 
-        # 2Factor returns keys like {"Status": "Success", "Details": "..."}
+        # 2Factor typically returns {"Status": "Success", "Details": "..."}
         status_val = str(payload.get("Status") or payload.get("status") or "").lower()
         if res.status_code == 200 and status_val == "success":
             print(f"OTP sent successfully to {phone}")
         else:
-            print(f"Failed to send OTP to {phone}, Response: {payload}")
+            # Keep the OTP in DB (user can try email or resend); surface clear logs
+            print(f"Failed to send OTP to {phone}, HTTP={res.status_code}, Status={status_val}, Payload={payload}")
     except Exception as e:
         print("SMS OTP Error:", e)
 
     return otp
 
 
-
-
 # -------------------------------
-# SEND EMAIL OTP
+# SEND EMAIL OTP  (MINOR SAFE GUARD)
 # -------------------------------
 def send_email_otp(email):
     """Send OTP via email using Mailtrap and save it in DB."""
@@ -166,9 +190,16 @@ def send_email_otp(email):
 
     # Prepare Mailtrap client and email
     client = mt.MailtrapClient(token=settings.MAILTRAP_API_KEY)
+
+    sender_email = getattr(settings, "DEFAULT_FROM_EMAIL", "hello@demomailtrap.co")
+    if sender_email.endswith("demomailtrap.co"):
+        # Helpful warning so you know if you’re on Sandbox (captured, not delivered)
+        print("⚠️  Mailtrap warning: DEFAULT_FROM_EMAIL looks like a sandbox sender "
+              "(demomailtrap.co). Emails may be captured and not delivered in production.")
+
     mail = mt.Mail(
         sender=mt.Address(
-            email=getattr(settings, "DEFAULT_FROM_EMAIL", "hello@demomailtrap.co"),
+            email=sender_email,
             name="UCMS Alumni Portal"
         ),
         to=[mt.Address(email=email)],
@@ -180,15 +211,16 @@ def send_email_otp(email):
 
     try:
         response = client.send(mail)
-        print("✅ Email OTP sent successfully:", response)
-        print(f"Message ID: {response.get('message_ids')}")
+        print("✅ Email OTP sent (Mailtrap API call executed):", response)
+        try:
+            print(f"Message ID(s): {response.get('message_ids')}")
+        except Exception:
+            pass
     except Exception as e:
         print("❌ Error sending Email OTP:", e)
         print(f"Error details: {e}")
 
     return otp
-
-
 
 
 # -------------------------------

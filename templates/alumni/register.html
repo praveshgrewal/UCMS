@@ -351,6 +351,21 @@ function getCookie(name) {
   return '';
 }
 
+/* Render backend field errors under inputs */
+function displayFormErrors(errors, form) {
+  form.querySelectorAll('.error-message').forEach(el => el.remove());
+  for (const fieldName in errors) {
+    const msgs = errors[fieldName];
+    const field = form.querySelector(`[name="${fieldName}"]`);
+    if (!field) continue;
+    const holder = field.closest('.form-group') || field.parentElement || field;
+    holder.insertAdjacentHTML(
+      'beforeend',
+      `<div class="error-message text-danger mt-1">${msgs.join('<br>')}</div>`
+    );
+  }
+}
+
 /* UG/PG toggling */
 function toggleYearFields() {
   const assoc   = document.querySelector('[name="academic_association"]');
@@ -502,8 +517,15 @@ document.addEventListener('DOMContentLoaded', function () {
       const url = form.getAttribute('action') || "{% url 'alumni:register' %}";
       const res = await fetch(url, { method: 'POST', body: formData });
 
-      let data = {};
-      try { data = await res.json(); } catch (_) {}
+      // Read raw text first, then attempt JSON parse (robust against HTML error pages)
+      const raw = await res.text();
+      let data;
+      try { data = JSON.parse(raw); }
+      catch (e) {
+        console.error('Non-JSON response from /register/:', raw);
+        alert('Server returned an unexpected response. Please try again.');
+        return;
+      }
 
       if (data && data.success) {
         // show Step 2
@@ -512,11 +534,11 @@ document.addEventListener('DOMContentLoaded', function () {
         const step2 = document.querySelector('.progress-step[data-step="2"]');
         if (step2) step2.classList.add('active');
 
-        // set channels
+        // channels for OTP
         window.contact = (data.contact_number || '').trim();
         window.email   = (data.email || '').trim();
 
-        // NOW make OTP blocks visible correctly
+        // show/hide OTP blocks appropriately
         updateOtpVisibility();
 
         // restart timers
@@ -525,7 +547,8 @@ document.addEventListener('DOMContentLoaded', function () {
       } else if (data && data.errors) {
         displayFormErrors(data.errors, form);
       } else {
-        alert('Something went wrong. Please try again.');
+        console.warn('Unexpected JSON from /register/:', data);
+        alert('An error occurred. Please try again.');
       }
     } catch (err) {
       console.error(err);
@@ -537,6 +560,7 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 });
 </script>
+
 
 
 

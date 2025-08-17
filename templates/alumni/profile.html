@@ -9,7 +9,6 @@
         <div class="col-lg-10">
             <div class="card profile-card">
                 <div class="card-header amazing-profile-header text-white d-flex justify-content-between align-items-center">
-
                     <h4 class="mb-0">
                         <i class="fas fa-user-circle"></i> My Profile
                     </h4>
@@ -27,13 +26,15 @@
                     <div class="row">
                         <!-- Photo and Basic Info -->
                         <div class="col-md-4 text-center mb-4">
-                            {% if alumni.photo %}
-                                <img src="{{ alumni.photo.url }}" alt="{{ alumni.name }}" class="profile-photo mb-3">
-                            {% else %}
-                                <div class="profile-photo-placeholder mb-3">
-                                    <i class="fas fa-user fa-4x"></i>
-                                </div>
-                            {% endif %}
+                            <!-- CHANGED: always use safe_photo_url + onerror fallback -->
+                            <img
+                                src="{{ alumni.safe_photo_url }}"
+                                alt="{{ alumni.name }}"
+                                class="profile-photo mb-3"
+                                style="width: 160px; height: 160px; border-radius: 50%; object-fit: cover;"
+                                loading="lazy"
+                                onerror="this.onerror=null;this.src='{% static 'images/default.png' %}';"
+                            >
                             <h5>{{ alumni.name }}</h5>
                             <p class="text-muted">{{ alumni.specialty }}</p>
                             <span class="badge bg-success">{{ alumni.get_status_display }}</span>

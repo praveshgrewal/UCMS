@@ -65,7 +65,7 @@ def verify_otp_view(request):
     contact = request.session.get('login_contact')
     if not contact:
         return redirect('alumni:login')
-    
+
     if request.method == 'POST':
         form = OTPVerificationForm(request.POST)
         if form.is_valid():
@@ -73,17 +73,45 @@ def verify_otp_view(request):
             if verify_otp(contact, otp):
                 alumni_id = request.session.get('alumni_id')
                 alumni = get_object_or_404(Alumni, id=alumni_id)
-                
-                if not alumni.user:
-                    user = User.objects.create_user(
-                        username=contact,
-                        email=alumni.email if '@' in contact else '',
-                        first_name=alumni.name.split()[0] if alumni.name else ''
+
+                # 1) If already linked, reuse
+                user = alumni.user
+
+                # 2) Otherwise, try to find an existing user by username
+                if user is None:
+                    # prefer exact contact first
+                    user = User.objects.filter(username=contact).first()
+                    # also try common alternates in case prior runs used a different key
+                    if user is None and alumni.email:
+                        user = User.objects.filter(username=alumni.email).first()
+                    if user is None and alumni.contact_number:
+                        user = User.objects.filter(username=alumni.contact_number).first()
+
+                # 3) If still no user, create one with a unique username
+                if user is None:
+                    base_username = contact or alumni.email or alumni.contact_number or (alumni.name or "user").replace(" ", "").lower()
+                    username = base_username
+                    i = 1
+                    while User.objects.filter(username=username).exists():
+                        username = f"{base_username}_{i}"
+                        i += 1
+
+                    user = User(
+                        username=username,
+                        email=(contact if "@" in contact else (alumni.email or "")),
+                        first_name=(alumni.name.split()[0] if alumni.name else "")
                     )
+                    # no password flow; make it unusable so login is only via OTP
+                    user.set_unusable_password()
+                    user.save()
+
+                # 4) Ensure the Alumni points at this user
+                if alumni.user_id != user.id:
                     alumni.user = user
-                    alumni.save()
-                
-                login(request, alumni.user)
+                    alumni.save(update_fields=["user"])
+
+                # 5) Log in and clean session
+                login(request, user)
                 request.session.pop('login_contact', None)
                 request.session.pop('alumni_id', None)
                 return redirect('alumni:directory')
@@ -91,7 +119,7 @@ def verify_otp_view(request):
                 messages.error(request, 'Invalid or expired OTP')
     else:
         form = OTPVerificationForm()
-    
+
     return render(request, 'alumni/verify_otp.html', {
         'form': form,
         'contact': contact

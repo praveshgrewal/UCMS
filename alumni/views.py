@@ -18,6 +18,9 @@ from .utils import send_sms_otp, send_email_otp, verify_otp, check_existing_alum
 
 from django.utils import timezone
 import logging
+
+from django.urls import reverse
+
 logger = logging.getLogger(__name__)
 
 
@@ -140,6 +143,9 @@ def register_view(request):
         return render(request, 'alumni/register.html', {'form': form})
 
     try:
+        # local import so this function is drop-in
+        from django.urls import reverse
+
         # ----- locate a potentially existing record by submitted identifiers -----
         email = (request.POST.get('email') or '').strip()
         phone = (request.POST.get('contact_number') or '').strip()
@@ -153,14 +159,35 @@ def register_view(request):
                 .first()
             )
 
-        # Prevent re-registration of approved profiles
+        # If profile is already approved, switch to LOGIN OTP flow instead of re-registering
         if existing and existing.status == 'approved':
-            logger.info("[register_view] approved duplicate: %s / %s", email, phone)
+            logger.info("[register_view] approved duplicate -> LOGIN FLOW: %s / %s", email, phone)
+
+            # Pick a single primary contact to keep the login OTP flow simple
+            primary_contact = (email or '').strip() or (phone or '').strip()
+
+            sent_ok = False
+            try:
+                if primary_contact:
+                    if '@' in primary_contact:
+                        send_email_otp(primary_contact)
+                    else:
+                        send_sms_otp(primary_contact)
+                    sent_ok = True
+            except Exception:
+                logger.exception("[register_view] login OTP send failed")
+
+            # Seed session for verify_otp_view
+            if primary_contact:
+                request.session['login_contact'] = primary_contact
+                request.session['alumni_id'] = existing.id
+
             return JsonResponse({
-                'success': False,
-                'errors': {
-                    'email': ['This email/phone is already registered. Please log in.']
-                }
+                'success': True,
+                'login_flow': True,
+                'message': 'Account already exists. We sent you a login OTP.',
+                'redirect_url': reverse('alumni:verify_otp'),
+                'otp_sent': sent_ok,
             }, status=200)
 
         # Bind the form. If there is a pending/rejected record, UPDATE it with new data.
@@ -187,7 +214,7 @@ def register_view(request):
                 logger.info("[register_view] sending SMS OTP to %s", alumni.contact_number)
                 send_sms_otp(alumni.contact_number)
                 sms_ok = True
-        except Exception as e:
+        except Exception:
             logger.exception("[register_view] SMS error")
 
         try:
@@ -195,7 +222,7 @@ def register_view(request):
                 logger.info("[register_view] sending Email OTP to %s", alumni.email)
                 send_email_otp(alumni.email)
                 email_ok = True
-        except Exception as e:
+        except Exception:
             logger.exception("[register_view] Email error")
 
         request.session['pending_registration_id'] = alumni.id
@@ -213,6 +240,7 @@ def register_view(request):
         logger.exception("[register_view] unexpected error")
         # Return JSON so the frontend won’t crash on res.json()
         return JsonResponse({'success': False, 'message': 'server_error'}, status=500)
+
 
 
 

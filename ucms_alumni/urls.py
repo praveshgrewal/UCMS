@@ -9,6 +9,9 @@ urlpatterns = [
     path('', include('alumni.urls')),
 ]
 
+# Always serve MEDIA (uploads) via Django (okay for low traffic)
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+# Only serve STATIC via Django in DEBUG; in prod WhiteNoise handles /static/
 if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

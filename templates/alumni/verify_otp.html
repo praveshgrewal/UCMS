@@ -7,38 +7,210 @@
 
 {% block content %}
 <div class="login-container">
-    <div class="container-fluid h-100">
-        <div class="row h-100 justify-content-center align-items-center">
-            <div class="col-md-6 col-lg-4">
-                <div class="login-card">
-                    <div class="login-header text-center mb-4">
-                        <h2 class="text-white mb-3">Verify OTP</h2>
-                        <p class="text-light mb-4">Enter the OTP sent to {{ contact }}</p>
-                    </div>
-                    
-                    <form method="post">
-                        {% csrf_token %}
-                        <div class="mb-4">
-                            {{ form.otp }}
-                        </div>
-                        
-                        <button type="submit" class="btn btn-warning w-100 py-3 fw-bold">
-                            Verify & Login
-                        </button>
-                    </form>
-                    
-                    <div class="mt-4 text-center">
-                        <a href="{% url 'alumni:login' %}" class="btn btn-outline-light">
-                            <i class="fas fa-arrow-left"></i> Back to Login
-                        </a>
-                    </div>
-                    
-                    <div class="mt-3 text-center">
-                        <small class="text-light otp-timer">OTP expires in 5:00</small>
-                    </div>
-                </div>
+  <div class="container-fluid h-100">
+    <div class="row h-100 justify-content-center align-items-center">
+      <div class="col-md-6 col-lg-4">
+        <div class="login-card">
+          <div class="login-header text-center mb-4">
+            <h2 class="text-white mb-3">Verify OTP</h2>
+            <p class="text-light mb-2">
+              Enter the 6-digit OTP we sent to
+              <strong id="maskedContact">{{ contact }}</strong>
+            </p>
+            <small class="text-light d-block">
+              <i class="fas fa-clock me-1"></i>
+              <span id="otpTimer" aria-live="polite">OTP expires in 5:00</span>
+            </small>
+          </div>
+
+          <!-- Keep a raw copy of the contact for JS -->
+          <input type="hidden" id="rawContact" value="{{ contact|default:'' }}">
+
+          <form method="post">
+            {% csrf_token %}
+            <div class="mb-4">
+              {{ form.otp }}
             </div>
+
+            <button type="submit" class="btn btn-warning w-100 py-3 fw-bold">
+              Verify & Login
+            </button>
+          </form>
+
+          <div class="d-flex justify-content-between align-items-center mt-3">
+            <button type="button" class="btn btn-outline-light" id="resendBtn">
+              <i class="fas fa-redo me-1"></i> Resend OTP
+            </button>
+            <a href="{% url 'alumni:login' %}" class="btn btn-outline-light">
+              <i class="fas fa-arrow-left"></i> Change Contact
+            </a>
+          </div>
+
+          <div class="mt-3 text-center">
+            <small class="text-light">Didn’t get it? Check spam or try Resend.</small>
+          </div>
         </div>
+      </div>
     </div>
+  </div>
 </div>
+
+<style>
+  /* Optional: tighten the OTP input if default widget is wide */
+  input[name="otp"] { letter-spacing: 0.3em; text-align: center; }
+</style>
+
+<script>
+/* ---- helpers ---- */
+function getCookie(name) {
+  const v = `; ${document.cookie}`;
+  const parts = v.split(`; ${name}=`);
+  if (parts.length === 2) return decodeURIComponent(parts.pop().split(';').shift());
+  return '';
+}
+function maskPhone(p) {
+  const d = (p || '').replace(/\D/g,'');
+  if (!d) return '';
+  return d.length <= 4 ? d : `••••••${d.slice(-4)}`;
+}
+function maskEmail(e) {
+  if (!e) return '';
+  const [u='', d=''] = String(e).split('@');
+  if (!d) return '•••';
+  const u2 = u.length <= 2 ? (u[0] + '•') : (u[0] + '•'.repeat(Math.max(1,u.length-2)) + u.slice(-1));
+  return `${u2}@${d}`;
+}
+
+/* ---- show masked contact ---- */
+(function showMasked() {
+  const raw = (document.getElementById('rawContact')?.value || '').trim();
+  const el = document.getElementById('maskedContact');
+  if (!el) return;
+  const masked = raw.includes('@') ? maskEmail(raw) : maskPhone(raw);
+  if (masked) el.textContent = masked;
+})();
+
+/* ---- countdown timer (5:00) ---- */
+let otpInterval = null;
+let otpCountdownSeconds = 300;
+function updateOtpTimer() {
+  const otpTimer = document.getElementById('otpTimer');
+  if (!otpTimer) return;
+  const m = Math.floor(otpCountdownSeconds / 60);
+  const s = otpCountdownSeconds % 60;
+  otpTimer.textContent = `OTP expires in ${m}:${s < 10 ? '0' + s : s}`;
+  otpCountdownSeconds--;
+  if (otpCountdownSeconds < 0) {
+    clearInterval(otpInterval);
+    otpTimer.textContent = 'OTP has expired.';
+    setResendEnabled(true);
+  }
+}
+function startOTPTimer() {
+  if (otpInterval) clearInterval(otpInterval);
+  otpCountdownSeconds = 300;
+  otpInterval = setInterval(updateOtpTimer, 1000);
+  updateOtpTimer();
+}
+
+/* ---- resend button state + cooldown ---- */
+let resendCooldownTimer = null;
+let resendTickTimer = null;
+
+function setResendEnabled(enabled) {
+  const btn = document.getElementById('resendBtn');
+  if (!btn) return;
+  btn.disabled = !enabled;
+  if (enabled) btn.textContent = 'Resend OTP';
+  else if (btn.textContent.toLowerCase().includes('resend')) btn.textContent = 'Wait...';
+}
+
+function startResendCooldown(seconds = 30) {
+  const btn = document.getElementById('resendBtn');
+  if (!btn) return;
+
+  setResendEnabled(false);
+  let left = seconds;
+
+  if (resendCooldownTimer) clearTimeout(resendCooldownTimer);
+  if (resendTickTimer) clearInterval(resendTickTimer);
+
+  resendTickTimer = setInterval(() => {
+    if (btn) btn.textContent = `Resend in ${left}s`;
+    left--;
+    if (left < 0) clearInterval(resendTickTimer);
+  }, 1000);
+
+  resendCooldownTimer = setTimeout(() => {
+    setResendEnabled(true);
+  }, seconds * 1000);
+}
+
+/* ---- resend OTP (uses alumni:resend_otp JSON endpoint) ---- */
+async function resendLoginOtp() {
+  const contact = (document.getElementById('rawContact')?.value || '').trim();
+  if (!contact) {
+    alert('Contact not found in session. Please go back and log in again.');
+    return;
+  }
+  const type = contact.includes('@') ? 'email' : 'phone';
+  const csrftoken = getCookie('csrftoken');
+
+  const btn = document.getElementById('resendBtn');
+  const prev = btn ? btn.innerHTML : '';
+
+  try {
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Sending…'; }
+
+    const res = await fetch("{% url 'alumni:resend_otp' %}", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": csrftoken
+      },
+      body: JSON.stringify({ contact, type })
+    });
+    const data = await res.json();
+
+    if (!res.ok || data.success === false) {
+      alert(data.message || 'Failed to resend OTP.');
+      setResendEnabled(true);
+      return;
+    }
+
+    // On success: restart expiry timer + start resend cooldown
+    alert(data.message || 'OTP resent.');
+    startOTPTimer();
+    startResendCooldown(30);
+  } catch (err) {
+    console.error(err);
+    alert('Failed to resend OTP. Try again.');
+    setResendEnabled(true);
+  } finally {
+    if (btn) btn.innerHTML = prev || 'Resend OTP';
+  }
+}
+
+/* ---- page init ---- */
+document.addEventListener('DOMContentLoaded', function () {
+  // Improve the OTP field UX a bit if possible (depends on your form widget)
+  const otpInput = document.querySelector('input[name="otp"]');
+  if (otpInput) {
+    otpInput.setAttribute('maxlength', '6');
+    otpInput.setAttribute('inputmode', 'numeric');
+    otpInput.setAttribute('autocomplete', 'one-time-code');
+    otpInput.setAttribute('pattern', '[0-9]{6}');
+    otpInput.focus();
+  }
+
+  startOTPTimer();
+  // Enable resend immediately; the cooldown will apply after first click
+  setResendEnabled(true);
+
+  const resendBtn = document.getElementById('resendBtn');
+  if (resendBtn) {
+    resendBtn.addEventListener('click', resendLoginOtp);
+  }
+});
+</script>
 {% endblock %}

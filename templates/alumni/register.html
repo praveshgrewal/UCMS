@@ -241,7 +241,8 @@
   id="step2"
   style="{% if step == 2 %}display:block;{% else %}display:none;{% endif %}"
 >
-  <form method="post" action="{% url 'alumni:verify_registration_otp' %}">
+  <form method="post" action="{% url 'alumni:verify_registration_otp' %}" id="verifyOtpForm">
+
     {% csrf_token %}
 
     <!-- These help JS know which OTPs to show if the page is server-rendered on step 2 -->
@@ -561,6 +562,49 @@ document.addEventListener('DOMContentLoaded', function () {
     updateOtpVisibility(true, true);
     startOTPTimer();
     setResendCooldown(30);
+  }
+
+    // --- Step 2 AJAX: verify both OTPs without leaving this page ---
+  const verifyForm = document.getElementById('verifyOtpForm');
+  if (verifyForm) {
+    verifyForm.addEventListener('submit', async function (e) {
+      e.preventDefault();
+      const btn = verifyForm.querySelector('button[type="submit"]');
+      const prev = btn ? btn.innerHTML : '';
+      if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Verifying...'; }
+
+      try {
+        const formData = new FormData(verifyForm);
+        const res = await fetch(verifyForm.getAttribute('action'), {
+          method: 'POST',
+          body: formData,
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest', // lets the view know this is AJAX
+            'Accept': 'application/json'
+          }
+        });
+
+        const raw = await res.text();
+        let data;
+        try { data = JSON.parse(raw); } catch (e) { console.error('Non-JSON from verify:', raw); throw new Error('Unexpected server response'); }
+
+        if (!res.ok || data.success === false) {
+          alert(data.message || 'Invalid or expired OTP(s). Please try again.');
+          return;
+        }
+
+        // SUCCESS → show Step 3 (stay on this page)
+        document.getElementById('step2').style.display = 'none';
+        document.getElementById('step3').style.display = 'block';
+        const step3 = document.querySelector('.progress-step[data-step="3"]');
+        if (step3) step3.classList.add('active');
+      } catch (err) {
+        console.error(err);
+        alert('Verification failed. Please try again.');
+      } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = prev || '<span class="btn-text">Complete Registration</span><i class="fas fa-check btn-icon"></i>'; }
+      }
+    });
   }
 
   // AJAX submit for Step 1 → swaps to Step 2

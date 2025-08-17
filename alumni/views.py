@@ -493,7 +493,7 @@ def admin_search_view(request):
         alumni_data.append({
             'id': alumni.id,
             'name': alumni.name,
-            'photo_url': alumni.photo.url if alumni.photo else None,
+            'photo_url': alumni.safe_photo_url,  # CHANGED
             'academic_association': alumni.academic_association,
             'joining_year_ug': alumni.joining_year_ug,
             'joining_year_pg': alumni.joining_year_pg,
@@ -531,7 +531,7 @@ def get_alumni_details_view(request, alumni_id):
     data = {
         'id': alumnus.id,
         'name': alumnus.name,
-        'photo_url': alumnus.photo.url if alumnus.photo else '',
+        'photo_url': alumnus.safe_photo_url,  # CHANGED
         'joining_year_ug': alumnus.joining_year_ug,
         'joining_year_pg': alumnus.joining_year_pg if alumnus.joining_year_pg else 'N/A',
         'academic_association': alumnus.academic_association,

@@ -227,7 +227,9 @@
                 </div>
                 
                 <div class="search-content" id="advancedSearch">
-                    <form method="get" id="searchForm" onsubmit="return false;"> <div class="search-grid">
+                    <!-- CHANGED: onsubmit now calls performLiveSearch and prevents default -->
+                    <form method="get" id="searchForm" onsubmit="performLiveSearch(); return false;">
+                        <div class="search-grid">
                             <div class="search-group">
                                 <label class="search-label">
                                     <i class="fas fa-user"></i>
@@ -278,11 +280,15 @@
                         </div>
                         
                         <div class="search-actions">
+                            <!-- NEW: explicit Search button -->
+                            <button type="submit" class="search-btn primary">
+                                <i class="fas fa-search"></i>
+                                <span>Search Alumni</span>
+                            </button>
                             <button type="button" class="search-btn secondary" onclick="clearSearch()">
                                 <i class="fas fa-times"></i>
                                 <span>Clear Filters</span>
                             </button>
-    
                         </div>
                     </form>
                 </div>
@@ -364,17 +370,18 @@
                                 </div>
                             </div>
                         </div>
-                                     <div class="alumni-actions d-flex gap-3 mt-3">
-  <button type="button" class="btn btn-outline-primary d-flex align-items-center gap-2 shadow-sm px-3" onclick="editAlumni({{ alumni.id }})">
-    <i class="fas fa-edit"></i>
-    <span>Edit</span>
-  </button>
-
-<!--   <button type="button" class="btn btn-outline-danger d-flex align-items-center gap-2 shadow-sm px-3" onclick="confirmRemove({{ alumni.id }})">
-    <i class="fas fa-trash-alt"></i>
-    <span>Remove</span>
-  </button> -->
-</div>
+                        <div class="alumni-actions d-flex gap-3 mt-3">
+                          <button type="button" class="btn btn-outline-primary d-flex align-items-center gap-2 shadow-sm px-3" onclick="editAlumni({{ alumni.id }})">
+                            <i class="fas fa-edit"></i>
+                            <span>Edit</span>
+                          </button>
+                          <!--
+                          <button type="button" class="btn btn-outline-danger d-flex align-items-center gap-2 shadow-sm px-3" onclick="confirmRemove({{ alumni.id }})">
+                            <i class="fas fa-trash-alt"></i>
+                            <span>Remove</span>
+                          </button>
+                          -->
+                        </div>
                     </div>
                     {% endfor %}
                 </div>
@@ -419,31 +426,19 @@
 let currentAlumniId = null;
 let currentAction = null;
 
-// Debounce utility function
-function debounce(func, wait) {
-    let timeout;
-    return function executedFunction(...args) {
-        const later = () => {
-            clearTimeout(timeout);
-            func(...args);
-        };
-        clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
-    };
-}
-
+/* REMOVED: the instant-search input listeners and debounce setup
 document.addEventListener('DOMContentLoaded', function() {
     const searchForm = document.getElementById('searchForm');
     if (searchForm) {
         const searchInputs = searchForm.querySelectorAll('.search-input');
         searchInputs.forEach(input => {
-            // Use debounce to prevent API calls on every keystroke
             input.addEventListener('input', debounce(performLiveSearch, 400));
         });
     }
 });
+*/
 
-// Perform Live Search via Fetch API
+// Perform Search only when the form is submitted (or Clear pressed)
 async function performLiveSearch() {
     const form = document.getElementById('searchForm');
     const params = new URLSearchParams(new FormData(form)).toString();
@@ -455,13 +450,11 @@ async function performLiveSearch() {
     resultsContainer.style.display = 'none';
 
     try {
-        // NOTE: This URL must match the one in your urls.py
         const response = await fetch(`/admin-search/?${params}`);
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        const data = await response.json(); // This now expects and gets JSON
-        
+        const data = await response.json();
         if (data.error) {
             throw new Error(data.error);
         }
@@ -501,7 +494,6 @@ function renderAlumniGrid(alumniList) {
         const pgHtml = alumni.joining_year_pg
             ? `<div class="detail-item"><i class="fas fa-user-graduate"></i><span>PG: ${alumni.joining_year_pg}</span></div>` : '';
 
-        // NOTE: This HTML structure now includes the correct classes for the action buttons
         const cardHtml = `
             <div class="alumni-card">
                 <div class="alumni-header">
@@ -525,23 +517,21 @@ function renderAlumniGrid(alumniList) {
                     <div class="detail-row"><div class="detail-item full-width"><i class="fas fa-hospital"></i><span>${alumni.current_work_association || 'N/A'}</span></div></div>
                 </div>
                 <div class="alumni-actions">
-<button type="button" class="btn btn-outline-primary d-flex align-items-center gap-2 shadow-sm px-3" onclick="editAlumni(${alumni.id})">
-        <i class="fas fa-edit"></i>
-        <span>Edit</span>
-    </button>
-                   
+                    <button type="button" class="btn btn-outline-primary d-flex align-items-center gap-2 shadow-sm px-3" onclick="editAlumni(${alumni.id})">
+                        <i class="fas fa-edit"></i>
+                        <span>Edit</span>
+                    </button>
                 </div>
             </div>`;
         container.innerHTML += cardHtml;
     });
 }
 
-
 // Clear search filters and reload initial data
 function clearSearch() {
     const form = document.getElementById('searchForm');
     form.reset();
-    performLiveSearch(); // Perform a search with empty filters to show all results
+    performLiveSearch(); // show all results after clearing
 }
 
 // Toggle advanced search panel
@@ -549,7 +539,6 @@ function toggleAdvancedSearch() {
     const searchContent = document.getElementById('advancedSearch');
     const toggleBtn = document.querySelector('.toggle-search-btn i');
     
-    // Simple toggle based on current display style
     const isHidden = searchContent.style.display === 'none' || searchContent.style.display === '';
     
     if (isHidden) {
@@ -560,7 +549,6 @@ function toggleAdvancedSearch() {
         toggleBtn.className = 'fas fa-chevron-down';
     }
 }
-
 
 // Edit alumni - redirects to the edit page
 function editAlumni(alumniId) {
@@ -598,10 +586,8 @@ function confirmRemove(alumniId) {
 // Handle confirmation action
 document.getElementById('confirmActionBtn').addEventListener('click', function() {
     if (currentAlumniId && currentAction === 'remove') {
-        // Redirect to the action URL which will handle deletion
         window.location.href = `/admin-action/${currentAlumniId}/delete/`;
     }
 });
-
 </script>
 {% endblock %}

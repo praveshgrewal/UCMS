@@ -309,55 +309,62 @@
 </div>
 
 <script>
-/* ------------ helpers ------------ */
+/* ------------ small helpers ------------ */
 function goBackToForm() {
   document.getElementById('step2').style.display = 'none';
   document.getElementById('step1').style.display = 'block';
 }
 
-/* UPDATED: show/hide + enable/disable UG/PG year inputs based on association */
+/* Read CSRF from cookie (safe for AJAX) */
+function getCookie(name) {
+  const v = `; ${document.cookie}`;
+  const parts = v.split(`; ${name}=`);
+  if (parts.length === 2) return decodeURIComponent(parts.pop().split(';').shift());
+  return '';
+}
+
+/* Show/hide + enable/disable + required UG/PG year inputs based on association */
 function toggleYearFields() {
-  const assoc = document.querySelector('[name="academic_association"]');
+  const assoc   = document.querySelector('[name="academic_association"]');
   const ugGroup = document.getElementById('group-joining-ug');
   const pgGroup = document.getElementById('group-joining-pg');
   const ugField = document.querySelector('[name="joining_year_ug"]');
   const pgField = document.querySelector('[name="joining_year_pg"]');
   if (!assoc || !ugGroup || !pgGroup || !ugField || !pgField) return;
 
-  // Normalize the value to handle labels like "UG and PG"
+  // Normalize values (UG, PG, UG_PG). Also tolerate "UG and PG"
   const v = (assoc.value || '')
               .toUpperCase()
               .replace(/&/g, 'AND')
               .replace(/\s+/g, '_'); // "UG and PG" -> "UG_AND_PG"
 
-  // Hide both by default
+  // Reset visibility & constraints
   ugGroup.style.display = 'none';
   pgGroup.style.display = 'none';
-  ugField.disabled = true;
-  pgField.disabled = true;
+  ugField.disabled = true; ugField.required = false;
+  pgField.disabled = true; pgField.required = false;
 
   if (v === 'UG') {
     ugGroup.style.display = '';
-    ugField.disabled = false;
-    // Clear PG if previously set
+    ugField.disabled = false; ugField.required = true;
     pgField.value = '';
   } else if (v === 'PG') {
     pgGroup.style.display = '';
-    pgField.disabled = false;
-    // Clear UG if previously set
+    pgField.disabled = false; pgField.required = true;
     ugField.value = '';
   } else if (v === 'UG_PG' || v === 'UG_AND_PG' || (v.includes('UG') && v.includes('PG'))) {
     ugGroup.style.display = '';
     pgGroup.style.display = '';
-    ugField.disabled = false;
-    pgField.disabled = false;
+    ugField.disabled = false; ugField.required = true;
+    pgField.disabled = false; pgField.required = true;
   } else {
-    // No selection -> both hidden/disabled
+    // No/unknown selection → keep both hidden & cleared
     ugField.value = '';
     pgField.value = '';
   }
 }
 
+/* Render backend field errors under inputs */
 function displayFormErrors(errors, form) {
   form.querySelectorAll('.error-message').forEach(el => el.remove());
   for (const fieldName in errors) {
@@ -370,64 +377,109 @@ function displayFormErrors(errors, form) {
   }
 }
 
+/* ------------ OTP timer + resend handling ------------ */
+let otpInterval = null;
+let otpCountdownSeconds = 300; // 5 minutes
+let resendCooldownTimer = null;
+
+function updateOtpTimer() {
+  const otpTimer = document.getElementById('otpTimer');
+  if (!otpTimer) return;
+
+  const m = Math.floor(otpCountdownSeconds / 60);
+  const s = otpCountdownSeconds % 60;
+  otpTimer.textContent = `OTP expires in ${m}:${s < 10 ? '0' + s : s}`;
+  otpCountdownSeconds--;
+
+  if (otpCountdownSeconds < 0) {
+    clearInterval(otpInterval);
+    otpTimer.textContent = 'OTP has expired.';
+    // When OTP expires, allow immediate resend
+    disableResendButtons(false);
+  }
+}
+
+function startOTPTimer() {
+  if (otpInterval) clearInterval(otpInterval);
+  otpCountdownSeconds = 300; // reset to 5:00
+  otpInterval = setInterval(updateOtpTimer, 1000);
+  updateOtpTimer(); // immediate first render
+}
+
+function disableResendButtons(disable = true) {
+  document.querySelectorAll('.resend-btn').forEach(btn => {
+    btn.disabled = disable;
+    btn.textContent = disable ? 'Wait...' : 'Resend';
+  });
+}
+
+function setResendCooldown(seconds = 30) {
+  // disable both while cooling down (simpler UX)
+  disableResendButtons(true);
+  if (resendCooldownTimer) clearTimeout(resendCooldownTimer);
+  resendCooldownTimer = setTimeout(() => disableResendButtons(false), seconds * 1000);
+}
+
+async function resendOTP(type) {
+  const contactToSend = (type === 'phone') ? window.contact : window.email;
+  if (!contactToSend) {
+    alert('Contact information not found. Please go back to the form.');
+    return;
+  }
+
+  const csrftoken = getCookie('csrftoken');
+
+  try {
+    const res = await fetch("{% url 'alumni:resend_otp' %}", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": csrftoken
+      },
+      body: JSON.stringify({ contact: contactToSend, type })
+    });
+    const data = await res.json();
+    alert(data.message || 'OTP resent.');
+    // After a resend, restart the 30s cooldown (UX) but keep overall 5-min expiry running
+    setResendCooldown(30);
+  } catch (err) {
+    console.error(err);
+    alert('Failed to resend OTP. Try again.');
+    // If it failed, lift the cooldown so the user can retry
+    disableResendButtons(false);
+  }
+}
+
 /* ------------ page init ------------ */
 document.addEventListener('DOMContentLoaded', function () {
-  // Hook up Academic Association -> UG/PG year toggling   <<< NEW
+  // Wire Academic Association -> UG/PG visibility
   const assocSelect = document.querySelector('[name="academic_association"]');
   if (assocSelect) {
     assocSelect.addEventListener('change', toggleYearFields);
-    toggleYearFields(); // initial state
+    toggleYearFields(); // initial state on load
   }
 
-  // Initialize OTP Timer and Resend buttons
-  let otpTimer = document.getElementById("otpTimer");
-  let resendPhoneBtn = document.querySelector(".resend-btn[data-type='phone']");
-  let resendEmailBtn = document.querySelector(".resend-btn[data-type='email']");
-  let countdownTime = 300; // 5 minutes countdown (300 seconds)
-  let interval;
-
-  function updateTimer() {
-    let minutes = Math.floor(countdownTime / 60);
-    let seconds = countdownTime % 60;
-    otpTimer.textContent = `OTP expires in ${minutes}:${seconds < 10 ? '0' + seconds : seconds}`;
-    countdownTime--;
-    
-    if (countdownTime < 0) {
-        clearInterval(interval);
-        otpTimer.textContent = 'OTP has expired.';
-        disableResendButtons(false); // Enable Resend OTP buttons
-    }
+  // Hook resend buttons
+  const resendPhoneBtn = document.querySelector('.resend-btn[data-type="phone"]');
+  const resendEmailBtn = document.querySelector('.resend-btn[data-type="email"]');
+  if (resendPhoneBtn) {
+    resendPhoneBtn.addEventListener('click', () => {
+      setResendCooldown(30);  // immediate cooldown feedback
+      resendOTP('phone');
+    });
+  }
+  if (resendEmailBtn) {
+    resendEmailBtn.addEventListener('click', () => {
+      setResendCooldown(30);
+      resendOTP('email');
+    });
   }
 
-  // Start the OTP countdown
-  interval = setInterval(updateTimer, 1000);
+  // Start OTP countdown & initial 30s cooldown for resend
+  startOTPTimer();
+  setResendCooldown(30);
 
-  // Disable resend buttons initially
-  function disableResendButtons(disable = true) {
-    resendPhoneBtn.disabled = disable;
-    resendEmailBtn.disabled = disable;
-    if (disable) {
-      resendPhoneBtn.textContent = 'Wait...';
-      resendEmailBtn.textContent = 'Wait...';
-    } else {
-      resendPhoneBtn.textContent = 'Resend';
-      resendEmailBtn.textContent = 'Resend';
-    }
-  }
-
-  // Resend OTP (Phone)
-  resendPhoneBtn.addEventListener('click', function () {
-    disableResendButtons(true); // Disable resend button for 30 seconds
-    resendOTP('phone');
-  });
-
-  // Resend OTP (Email)
-  resendEmailBtn.addEventListener('click', function () {
-    disableResendButtons(true); // Disable resend button for 30 seconds
-    resendOTP('email');
-  });
-
-  // AJAX submit for Step 1
+  // AJAX submit for Step 1 → switches to Step 2 on success
   const form = document.getElementById('registrationForm');
   if (!form) return;
 
@@ -457,7 +509,9 @@ document.addEventListener('DOMContentLoaded', function () {
         window.contact = data.contact_number || '';
         window.email   = data.email || '';
 
-        if (typeof startOTPTimer === 'function') startOTPTimer();
+        // restart OTP timer + cooldown for the new codes
+        startOTPTimer();
+        setResendCooldown(30);
       } else if (data && data.errors) {
         displayFormErrors(data.errors, form);
       } else {
@@ -472,29 +526,6 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   });
 });
-
-/* ------------ resend OTP for step 2 ------------ */
-function resendOTP(type) {
-  const contactToSend = (type === 'phone') ? window.contact : window.email;
-  if (!contactToSend) {
-    alert('Contact information not found. Please go back to the form.');
-    return;
-  }
-
-  fetch("{% url 'alumni:resend_otp' %}", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-CSRFToken": "{{ csrf_token }}"
-    },
-    body: JSON.stringify({ contact: contactToSend, type })
-  })
-  .then(r => r.json())
-  .then(data => alert(data.message || 'OTP resent.'))
-  .catch(err => {
-    console.error(err);
-    alert('Failed to resend OTP. Try again.');
-  });
-}
 </script>
+
 {% endblock %}

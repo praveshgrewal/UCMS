@@ -377,6 +377,36 @@ function displayFormErrors(errors, form) {
   }
 }
 
+/* ------------ OTP visibility helpers (NEW) ------------ */
+function getOtpDom() {
+  const phoneGroup = document.querySelector('.otp-group .modern-label i.fa-phone')?.closest('.otp-group')
+                    || document.querySelector('.otp-group[data-type="phone"]') || null;
+  const emailGroup = document.querySelector('.otp-group .modern-label i.fa-envelope')?.closest('.otp-group')
+                    || document.querySelector('.otp-group[data-type="email"]') || null;
+  const phoneInput = document.querySelector('input[name="phoneOtp"]');
+  const emailInput = document.querySelector('input[name="emailOtp"]');
+  return { phoneGroup, emailGroup, phoneInput, emailInput };
+}
+
+/* Hide/show & set required based on available channels */
+function updateOtpVisibility() {
+  const { phoneGroup, emailGroup, phoneInput, emailInput } = getOtpDom();
+
+  const usingPhone = !!(window.contact && String(window.contact).trim());
+  const usingEmail = !!(window.email && String(window.email).trim());
+
+  // Always clear "required" first to avoid browser blocking when only one channel exists
+  if (phoneInput) phoneInput.required = false;
+  if (emailInput) emailInput.required = false;
+
+  if (phoneGroup) phoneGroup.style.display = usingPhone ? '' : 'none';
+  if (emailGroup) emailGroup.style.display = usingEmail ? '' : 'none';
+
+  // Then set required only for channels we actually sent OTP to
+  if (phoneInput && usingPhone) phoneInput.required = true;
+  if (emailInput && usingEmail) emailInput.required = true;
+}
+
 /* ------------ OTP timer + resend handling ------------ */
 let otpInterval = null;
 let otpCountdownSeconds = 300; // 5 minutes
@@ -479,6 +509,13 @@ document.addEventListener('DOMContentLoaded', function () {
   startOTPTimer();
   setResendCooldown(30);
 
+  // IMPORTANT: on load, remove "required" from both OTP inputs,
+  // then apply visibility/required based on channels (if available later)
+  const { phoneInput, emailInput } = getOtpDom();
+  if (phoneInput) phoneInput.required = false;
+  if (emailInput) emailInput.required = false;
+  updateOtpVisibility();
+
   // AJAX submit for Step 1 → switches to Step 2 on success
   const form = document.getElementById('registrationForm');
   if (!form) return;
@@ -509,6 +546,9 @@ document.addEventListener('DOMContentLoaded', function () {
         window.contact = data.contact_number || '';
         window.email   = data.email || '';
 
+        // NEW: adjust which OTP fields show + which are required
+        updateOtpVisibility();
+
         // restart OTP timer + cooldown for the new codes
         startOTPTimer();
         setResendCooldown(30);
@@ -527,5 +567,6 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 });
 </script>
+
 
 {% endblock %}

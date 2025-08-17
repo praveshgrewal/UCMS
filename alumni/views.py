@@ -67,70 +67,100 @@ def send_otp_view(request):
 
 
 def verify_otp_view(request):
-    """Verify OTP and login alumni"""
+    """
+    Login OTP verification (separate from registration flow).
+    More defensive: handles missing alumni_id in session, falls back by contact,
+    and never 500s on expected user errors.
+    """
     contact = request.session.get('login_contact')
     if not contact:
+        messages.error(request, 'Your session expired. Please log in again.')
         return redirect('alumni:login')
 
     if request.method == 'POST':
         form = OTPVerificationForm(request.POST)
-        if form.is_valid():
-            otp = form.cleaned_data['otp']
-            if verify_otp(contact, otp):
-                alumni_id = request.session.get('alumni_id')
-                alumni = get_object_or_404(Alumni, id=alumni_id)
+        if not form.is_valid():
+            messages.error(request, 'Please enter the 6-digit OTP.')
+            return render(request, 'alumni/verify_otp.html', {'form': form, 'contact': contact})
 
-                # 1) If already linked, reuse
-                user = alumni.user
+        otp = form.cleaned_data.get('otp', '').strip()
 
-                # 2) Otherwise, try to find an existing user by username
-                if user is None:
-                    # prefer exact contact first
-                    user = User.objects.filter(username=contact).first()
-                    # also try common alternates in case prior runs used a different key
-                    if user is None and alumni.email:
-                        user = User.objects.filter(username=alumni.email).first()
-                    if user is None and alumni.contact_number:
-                        user = User.objects.filter(username=alumni.contact_number).first()
+        try:
+            # 1) Verify the OTP against our local store
+            if not verify_otp(contact, otp):
+                messages.error(request, 'Invalid or expired OTP. Please try again.')
+                return render(request, 'alumni/verify_otp.html', {'form': form, 'contact': contact})
 
-                # 3) If still no user, create one with a unique username
-                if user is None:
-                    base_username = contact or alumni.email or alumni.contact_number or (alumni.name or "user").replace(" ", "").lower()
-                    username = base_username
-                    i = 1
-                    while User.objects.filter(username=username).exists():
-                        username = f"{base_username}_{i}"
-                        i += 1
+            # 2) Resolve the Alumni we intend to log in
+            alumni_id = request.session.get('alumni_id')
+            alumni = None
+            if alumni_id:
+                try:
+                    alumni = Alumni.objects.get(id=alumni_id)
+                except Alumni.DoesNotExist:
+                    alumni = None
 
-                    user = User(
-                        username=username,
-                        email=(contact if "@" in contact else (alumni.email or "")),
-                        first_name=(alumni.name.split()[0] if alumni.name else "")
-                    )
-                    # no password flow; make it unusable so login is only via OTP
-                    user.set_unusable_password()
-                    user.save()
+            # Fallback: find by contact (email OR phone) among approved
+            if alumni is None:
+                alumni = Alumni.objects.filter(
+                    Q(email__iexact=contact) | Q(contact_number=contact),
+                    status='approved'
+                ).order_by('-created_at').first()
 
-                # 4) Ensure the Alumni points at this user
-                if alumni.user_id != user.id:
-                    alumni.user = user
-                    alumni.save(update_fields=["user"])
+            if alumni is None:
+                messages.error(request, 'We could not find your profile. Please register first.')
+                return redirect('alumni:register')
 
-                # 5) Log in and clean session
-                login(request, user)
-                request.session.pop('login_contact', None)
-                request.session.pop('alumni_id', None)
-                return redirect('alumni:directory')
-            else:
-                messages.error(request, 'Invalid or expired OTP')
-    else:
-        form = OTPVerificationForm()
+            # 3) Ensure there is a User to log in
+            user = getattr(alumni, 'user', None)
 
-    return render(request, 'alumni/verify_otp.html', {
-        'form': form,
-        'contact': contact
-    })
+            if user is None:
+                # Try common usernames we may have used previously
+                user = User.objects.filter(username=contact).first()
+                if user is None and alumni.email:
+                    user = User.objects.filter(username=alumni.email).first()
+                if user is None and alumni.contact_number:
+                    user = User.objects.filter(username=alumni.contact_number).first()
 
+            if user is None:
+                # Create a new user with a unique username
+                base_username = contact or alumni.email or alumni.contact_number or (alumni.name or "user").replace(" ", "").lower()
+                username = base_username
+                i = 1
+                while User.objects.filter(username=username).exists():
+                    username = f"{base_username}_{i}"
+                    i += 1
+
+                user = User(
+                    username=username,
+                    email=(contact if "@" in contact else (alumni.email or "")),
+                    first_name=(alumni.name.split()[0] if alumni.name else "")
+                )
+                user.set_unusable_password()  # OTP-only auth
+                user.save()
+
+            # 4) Link Alumni → User if not linked
+            if alumni.user_id != user.id:
+                alumni.user = user
+                alumni.save(update_fields=['user'])
+
+            # 5) Log in and clean session
+            login(request, user)
+            request.session.pop('login_contact', None)
+            request.session.pop('alumni_id', None)
+
+            return redirect('alumni:directory')
+
+        except Exception as e:
+            logger.exception("[verify_otp_view] unexpected error during OTP login")
+            messages.error(request, 'Something went wrong while verifying your OTP. Please try again.')
+            # Re-render the same page instead of 500
+            # (Do NOT expose internal error details to the user)
+            return render(request, 'alumni/verify_otp.html', {'form': form, 'contact': contact})
+
+    # GET → show the form
+    form = OTPVerificationForm()
+    return render(request, 'alumni/verify_otp.html', {'form': form, 'contact': contact})
 
 def register_view(request):
     """

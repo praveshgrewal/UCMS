@@ -48,14 +48,10 @@ def generate_otp():
 # -------------------------------
 def send_sms_otp(contact):
     """Send OTP via SMS and save it in DB."""
-    # Debug: who are we sending to?
     print(f"Attempting to send OTP to: {contact}")
-
-    # Generate + persist OTP
     otp = generate_otp()
     expires_at = timezone.now() + timedelta(minutes=getattr(settings, "OTP_EXPIRY_MINUTES", 5))
 
-    # Remove old OTPs for this contact to avoid duplicates
     OTPVerification.objects.filter(contact=contact).delete()
 
     OTPVerification.objects.create(
@@ -67,45 +63,32 @@ def send_sms_otp(contact):
 
     print(f"Generated OTP: {otp}, Expiry Time: {expires_at}")
 
-    # --- Normalize phone to E.164 for India (+91XXXXXXXXXX) ---
-    raw = str(contact).strip()
-    digits = re.sub(r"\D", "", raw)  # keep digits only
+    phone = f"+91{contact}" if not str(contact).startswith("+91") else str(contact)
+    print(f"Sending OTP to phone number: {phone}")
 
-    if raw.startswith("+"):
-        phone_e164 = raw
-    elif digits.startswith("91") and len(digits) == 12:
-        phone_e164 = f"+{digits}"
-    elif len(digits) == 10:
-        phone_e164 = f"+91{digits}"
-    else:
-        # Fallback: best-effort
-        phone_e164 = f"+{digits}" if digits else raw
-
-    print(f"Sending OTP to phone number: {phone_e164}")
-
-    # 2Factor API URL
     api_key = settings.TWO_FACTOR_API_KEY
-    url = f"https://2factor.in/API/V1/{api_key}/SMS/{phone_e164}/{otp}"
+    url = f"https://2factor.in/API/V1/{api_key}/SMS/{phone}/{otp}"
 
     try:
-        res = requests.get(url, timeout=10)
+        res = requests.get(url, timeout=8)
         try:
-            data = res.json()
+            payload = res.json()
         except Exception:
-            data = {}
+            payload = {"raw": res.text}
 
-        print("SMS OTP Response:", data)
+        print("SMS OTP Response:", payload)
 
-        # 2Factor returns {"Status": "Success", "Details": "..."}
-        status = str(data.get("Status", data.get("status", ""))).lower()
-        if res.ok and status == "success":
-            print(f"✅ SMS OTP sent to {phone_e164}")
+        # 2Factor returns keys like {"Status": "Success", "Details": "..."}
+        status_val = str(payload.get("Status") or payload.get("status") or "").lower()
+        if res.status_code == 200 and status_val == "success":
+            print(f"OTP sent successfully to {phone}")
         else:
-            print(f"❌ SMS provider did not confirm send (HTTP {res.status_code}) body={data}")
+            print(f"Failed to send OTP to {phone}, Response: {payload}")
     except Exception as e:
         print("SMS OTP Error:", e)
 
     return otp
+
 
 
 

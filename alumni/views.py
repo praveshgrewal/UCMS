@@ -7,6 +7,8 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.db.models import Q
 from django.conf import settings
+from django.db import IntegrityError
+
 
 import json
 
@@ -71,7 +73,8 @@ def send_otp_view(request):
 def verify_otp_view(request):
     """
     Login OTP verification (separate from registration).
-    Explicitly passes an auth backend to login() so the session sticks.
+    Avoids OneToOne clashes by not re-linking a User already owned by another Alumni.
+    Always passes an auth backend to login() so the session persists.
     """
     contact = request.session.get('login_contact')
     if not contact:
@@ -87,36 +90,48 @@ def verify_otp_view(request):
         otp = (form.cleaned_data.get('otp') or '').strip()
 
         try:
-            # 1) Check OTP in our store
+            # 1) Check OTP
             if not verify_otp(contact, otp):
                 messages.error(request, 'Invalid or expired OTP. Please try again.')
                 return render(request, 'alumni/verify_otp.html', {'form': form, 'contact': contact})
 
-            # 2) Resolve the Alumni
+            # 2) Resolve the Alumni row
             alumni = None
             alumni_id = request.session.get('alumni_id')
             if alumni_id:
                 alumni = Alumni.objects.filter(id=alumni_id).first()
+
             if alumni is None:
-                alumni = Alumni.objects.filter(
-                    Q(email__iexact=contact) | Q(contact_number=contact),
-                    status='approved'
-                ).order_by('-created_at').first()
+                qs = Alumni.objects.filter(Q(email__iexact=contact) | Q(contact_number=contact))
+                # Prefer a row already linked to a user (avoids re-link attempts)
+                alumni = qs.filter(user__isnull=False).order_by('-created_at').first() or qs.order_by('-created_at').first()
 
             if alumni is None:
                 messages.error(request, 'We could not find your profile. Please register first.')
                 return redirect('alumni:register')
 
-            # 3) Ensure there is a User
-            user = getattr(alumni, 'user', None)
-            if user is None:
+            # 3) Pick or create the User
+            user = alumni.user
+            if not user:
+                # If another alumni with same contact is already linked, reuse that user
+                conflict_alumni = Alumni.objects.filter(
+                    user__isnull=False
+                ).filter(
+                    Q(email__iexact=contact) | Q(contact_number=contact)
+                ).exclude(pk=alumni.pk).first()
+                if conflict_alumni:
+                    user = conflict_alumni.user
+
+            if not user:
+                # Try by likely usernames
                 user = User.objects.filter(username=contact).first()
-                if user is None and alumni.email:
+                if not user and alumni.email:
                     user = User.objects.filter(username=alumni.email).first()
-                if user is None and alumni.contact_number:
+                if not user and alumni.contact_number:
                     user = User.objects.filter(username=alumni.contact_number).first()
 
-            if user is None:
+            if not user:
+                # Create new user
                 base_username = contact or alumni.email or alumni.contact_number or (alumni.name or "user").replace(" ", "").lower()
                 username = base_username
                 i = 1
@@ -132,19 +147,31 @@ def verify_otp_view(request):
                 user.set_unusable_password()
                 user.save()
 
-            # 4) Link Alumni → User
-            if alumni.user_id != user.id:
-                alumni.user = user
-                alumni.save(update_fields=['user'])
+            # 4) Link Alumni → User only if no other Alumni owns this user
+            try:
+                if alumni.user_id != user.id:
+                    if Alumni.objects.filter(user=user).exclude(pk=alumni.pk).exists():
+                        # Someone else already owns this user; don't relink.
+                        logger.warning("User %s already linked to another Alumni. Skipping relink.", user.id)
+                    else:
+                        alumni.user = user
+                        alumni.save(update_fields=['user'])
+            except IntegrityError:
+                # Safety: if the race condition still happens, skip relink and continue.
+                logger.warning("IntegrityError linking user %s to alumni %s; proceeding with login.", user.id, alumni.id)
 
-            # 5) LOGIN: pass backend explicitly so session persists
+            # 5) Login with explicit backend so the session sticks
             backend = settings.AUTHENTICATION_BACKENDS[0]  # e.g. 'django.contrib.auth.backends.ModelBackend'
             login(request, user, backend=backend)
 
-            # 6) Clean session + go to directory
+            # Optional: align session alumni_id with the actually-linked row
+            linked_row = Alumni.objects.filter(user=user).first()
+            if linked_row:
+                request.session['alumni_id'] = linked_row.id
+
+            # 6) Clean session + redirect
             request.session.pop('login_contact', None)
-            request.session.pop('alumni_id', None)
-            logger.info("OTP login OK for alumni_id=%s user_id=%s", alumni.id, user.id)
+            logger.info("OTP login OK for alumni_id=%s user_id=%s", (linked_row or alumni).id, user.id)
             return redirect('alumni:directory')
 
         except Exception:

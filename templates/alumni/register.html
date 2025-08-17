@@ -69,39 +69,40 @@
                     </div>
                   </div>
                 </div>
-<!-- Academic Details -->
-<div class="form-section">
-  <h4 class="section-title">
-    <i class="fas fa-book"></i>
-    Academic Details
-  </h4>
 
-  <div class="form-row">
-    <div class="form-group" id="group-joining-ug">
-      <label class="modern-label" for="{{ form.joining_year_ug.id_for_label }}">Joining Year UG</label>
-      <div class="input-container">
-        {{ form.joining_year_ug }}
-        <i class="fas fa-calendar input-icon" aria-hidden="true"></i>
-      </div>
-    </div>
+                <!-- Academic Details -->
+                <div class="form-section">
+                  <h4 class="section-title">
+                    <i class="fas fa-book"></i>
+                    Academic Details
+                  </h4>
 
-    <div class="form-group" id="group-joining-pg">
-      <label class="modern-label" for="{{ form.joining_year_pg.id_for_label }}">Joining Year PG</label>
-      <div class="input-container">
-        {{ form.joining_year_pg }}
-        <i class="fas fa-calendar-alt input-icon" aria-hidden="true"></i>
-      </div>
-    </div>
-  </div>
+                  <div class="form-row">
+                    <div class="form-group" id="group-joining-ug">
+                      <label class="modern-label" for="{{ form.joining_year_ug.id_for_label }}">Joining Year UG</label>
+                      <div class="input-container">
+                        {{ form.joining_year_ug }}
+                        <i class="fas fa-calendar input-icon" aria-hidden="true"></i>
+                      </div>
+                    </div>
 
-  <div class="form-group">
-    <label class="modern-label">Specialty</label>
-    <div class="input-container">
-      {{ form.specialty }}
-      <i class="fas fa-stethoscope input-icon" aria-hidden="true"></i>
-    </div>
-  </div>
-</div>
+                    <div class="form-group" id="group-joining-pg">
+                      <label class="modern-label" for="{{ form.joining_year_pg.id_for_label }}">Joining Year PG</label>
+                      <div class="input-container">
+                        {{ form.joining_year_pg }}
+                        <i class="fas fa-calendar-alt input-icon" aria-hidden="true"></i>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="modern-label">Specialty</label>
+                    <div class="input-container">
+                      {{ form.specialty }}
+                      <i class="fas fa-stethoscope input-icon" aria-hidden="true"></i>
+                    </div>
+                  </div>
+                </div>
 
                 <!-- Location -->
                 <div class="form-section">
@@ -249,7 +250,6 @@
 
                 <div class="otp-inputs">
                   <!-- Phone OTP -->
-                 <!-- Phone OTP -->
                   <div class="otp-group form-group">
                       <label class="modern-label">
                           <i class="fas fa-phone"></i> Phone Verification
@@ -274,7 +274,6 @@
                           </button>
                       </div>
                   </div>
-                  
 
                 <!-- OTP Timer -->
                 <div class="verification-timer">
@@ -310,25 +309,53 @@
 </div>
 
 <script>
-
 /* ------------ helpers ------------ */
 function goBackToForm() {
   document.getElementById('step2').style.display = 'none';
   document.getElementById('step1').style.display = 'block';
 }
 
+/* UPDATED: show/hide + enable/disable UG/PG year inputs based on association */
 function toggleYearFields() {
   const assoc = document.querySelector('[name="academic_association"]');
-  const ug = document.getElementById('group-joining-ug');
-  const pg = document.getElementById('group-joining-pg');
-  if (!assoc || !ug || !pg) return;
+  const ugGroup = document.getElementById('group-joining-ug');
+  const pgGroup = document.getElementById('group-joining-pg');
+  const ugField = document.querySelector('[name="joining_year_ug"]');
+  const pgField = document.querySelector('[name="joining_year_pg"]');
+  if (!assoc || !ugGroup || !pgGroup || !ugField || !pgField) return;
 
-  ug.style.display = 'none';
-  pg.style.display = 'none';
+  // Normalize the value to handle labels like "UG and PG"
+  const v = (assoc.value || '')
+              .toUpperCase()
+              .replace(/&/g, 'AND')
+              .replace(/\s+/g, '_'); // "UG and PG" -> "UG_AND_PG"
 
-  if (assoc.value === 'UG') ug.style.display = '';
-  else if (assoc.value === 'PG') pg.style.display = '';
-  else if (assoc.value === 'UG_PG') { ug.style.display = ''; pg.style.display = ''; }
+  // Hide both by default
+  ugGroup.style.display = 'none';
+  pgGroup.style.display = 'none';
+  ugField.disabled = true;
+  pgField.disabled = true;
+
+  if (v === 'UG') {
+    ugGroup.style.display = '';
+    ugField.disabled = false;
+    // Clear PG if previously set
+    pgField.value = '';
+  } else if (v === 'PG') {
+    pgGroup.style.display = '';
+    pgField.disabled = false;
+    // Clear UG if previously set
+    ugField.value = '';
+  } else if (v === 'UG_PG' || v === 'UG_AND_PG' || (v.includes('UG') && v.includes('PG'))) {
+    ugGroup.style.display = '';
+    pgGroup.style.display = '';
+    ugField.disabled = false;
+    pgField.disabled = false;
+  } else {
+    // No selection -> both hidden/disabled
+    ugField.value = '';
+    pgField.value = '';
+  }
 }
 
 function displayFormErrors(errors, form) {
@@ -345,6 +372,13 @@ function displayFormErrors(errors, form) {
 
 /* ------------ page init ------------ */
 document.addEventListener('DOMContentLoaded', function () {
+  // Hook up Academic Association -> UG/PG year toggling   <<< NEW
+  const assocSelect = document.querySelector('[name="academic_association"]');
+  if (assocSelect) {
+    assocSelect.addEventListener('change', toggleYearFields);
+    toggleYearFields(); // initial state
+  }
+
   // Initialize OTP Timer and Resend buttons
   let otpTimer = document.getElementById("otpTimer");
   let resendPhoneBtn = document.querySelector(".resend-btn[data-type='phone']");
@@ -392,31 +426,6 @@ document.addEventListener('DOMContentLoaded', function () {
     disableResendButtons(true); // Disable resend button for 30 seconds
     resendOTP('email');
   });
-
-  // Function to resend OTP via AJAX
-  function resendOTP(type) {
-    const contactToSend = (type === 'phone') ? window.contact : window.email;
-
-    if (!contactToSend) {
-      alert('Contact information not found. Please go back to the form.');
-      return;
-    }
-
-    fetch("{% url 'alumni:resend_otp' %}", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-CSRFToken": "{{ csrf_token }}"
-      },
-      body: JSON.stringify({ contact: contactToSend, type })
-    })
-    .then(r => r.json())
-    .then(data => alert(data.message || 'OTP resent.'))
-    .catch(err => {
-      console.error(err);
-      alert('Failed to resend OTP. Try again.');
-    });
-  }
 
   // AJAX submit for Step 1
   const form = document.getElementById('registrationForm');
@@ -488,6 +497,4 @@ function resendOTP(type) {
   });
 }
 </script>
-
-
 {% endblock %}

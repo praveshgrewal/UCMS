@@ -17,7 +17,8 @@ urlpatterns = [
 
     
     # Alumni URLs
-    path('directory/', views.directory_view, name='directory'),
+    path('directory/', views.admin_panel_view, name='directory'),
+
     path('profile/', views.profile_view, name='profile'),
     path('edit-profile/', views.edit_profile_view, name='edit_profile'),
 

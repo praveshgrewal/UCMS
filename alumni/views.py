@@ -9,17 +9,13 @@ from django.db.models import Q
 from django.conf import settings
 from django.db import IntegrityError
 
-
 import json
-
 from .models import Alumni, AdminUser, OTPVerification
 from .forms import (
     AlumniLoginForm, OTPVerificationForm, AlumniRegistrationForm,
     AdminLoginForm, AlumniFilterForm
 )
 from .utils import send_sms_otp, send_email_otp, verify_otp, check_existing_alumni
-# from .views import is_admin, is_super_admin 
-
 from django.utils import timezone
 import logging
 
@@ -27,15 +23,12 @@ from django.urls import reverse
 
 logger = logging.getLogger(__name__)
 
-
 # keep these helpers at top of alumni/views.py
 def is_admin(user):
     return user.is_superuser or user.is_staff or AdminUser.objects.filter(user=user).exists()
 
 def is_super_admin(user):
     return user.is_superuser or AdminUser.objects.filter(user=user, is_super_admin=True).exists()
-
-
 
 def login_view(request):
     if request.method == 'POST':
@@ -57,18 +50,6 @@ def login_view(request):
     else:
         form = AlumniLoginForm()
     return render(request, 'alumni/login.html', {'form': form})
-
-def send_otp_view(request):
-    if request.method == 'POST':
-        contact = request.POST.get('contact')
-        if contact:
-            if '@' in contact:
-                send_email_otp(contact)
-            else:
-                send_sms_otp(contact)
-            return JsonResponse({'success': True, 'message': 'OTP sent successfully'})
-    return JsonResponse({'success': False, 'message': 'Invalid request'})
-
 
 def verify_otp_view(request):
     """
@@ -182,6 +163,14 @@ def verify_otp_view(request):
     # GET → show form
     form = OTPVerificationForm()
     return render(request, 'alumni/verify_otp.html', {'form': form, 'contact': contact})
+
+@login_required
+def directory_view(request):
+    alumni_list = Alumni.objects.filter(status='approved').order_by('name')
+    return render(request, 'alumni/directory.html', {'alumni_list': alumni_list})
+    
+# (Other views such as profile_view, admin panel views, etc. remain unchanged)
+
 
 
 

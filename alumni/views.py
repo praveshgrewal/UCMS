@@ -164,10 +164,54 @@ def verify_otp_view(request):
     form = OTPVerificationForm()
     return render(request, 'alumni/verify_otp.html', {'form': form, 'contact': contact})
 
+# @login_required
+# def directory_view(request):
+#     alumni_list = Alumni.objects.filter(status='approved').order_by('name')
+#     return render(request, 'alumni/directory.html', {'alumni_list': alumni_list})
+
+
 @login_required
 def directory_view(request):
-    alumni_list = Alumni.objects.filter(status='approved').order_by('name')
-    return render(request, 'alumni/directory.html', {'alumni_list': alumni_list})
+    """Alumni directory with filters - only shows results when searched"""
+    form = AlumniFilterForm(request.GET)
+    alumni_list = Alumni.objects.none()
+    has_search_params = any(request.GET.get(field) for field in [
+        'name', 'joining_year', 'work_association', 'specialization', 'location', 'designation'
+    ])
+
+    if has_search_params and form.is_valid():
+        alumni_list = Alumni.objects.filter(status='approved')
+        
+        if form.cleaned_data['name']:
+            alumni_list = alumni_list.filter(name__icontains=form.cleaned_data['name'])
+        if form.cleaned_data['joining_year']:
+            alumni_list = alumni_list.filter(joining_year_ug=form.cleaned_data['joining_year'])
+        if form.cleaned_data['work_association']:
+            alumni_list = alumni_list.filter(current_work_association__icontains=form.cleaned_data['work_association'])
+        if form.cleaned_data['specialization']:
+            alumni_list = alumni_list.filter(specialty__icontains=form.cleaned_data['specialization'])
+        if form.cleaned_data['location']:
+            alumni_list = alumni_list.filter(
+                Q(city__icontains=form.cleaned_data['location']) |
+                Q(state__icontains=form.cleaned_data['location']) |
+                Q(country__icontains=form.cleaned_data['location'])
+            )
+        if form.cleaned_data['designation']:
+            alumni_list = alumni_list.filter(current_designation__icontains=form.cleaned_data['designation'])
+
+    alumni_list_with_delay = []
+    for idx, alumni in enumerate(alumni_list):
+        alumni_list_with_delay.append({
+            "alumni": alumni,
+            "delay": (idx + 1) * 50
+        })
+
+    return render(request, 'alumni/directory.html', {
+        'alumni_list': alumni_list_with_delay,
+        'filter_form': form,
+        'has_search_params': has_search_params
+    })
+
     
 # (Other views such as profile_view, admin panel views, etc. remain unchanged)
 

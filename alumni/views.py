@@ -439,46 +439,35 @@ def verify_registration_otp_view(request):
 
 
 @login_required
-def directory_view(request):
-    """Alumni directory with filters - only shows results when searched"""
-    form = AlumniFilterForm(request.GET)
-    alumni_list = Alumni.objects.none()
-    has_search_params = any(request.GET.get(field) for field in [
-        'name', 'joining_year', 'work_association', 'specialization', 'location', 'designation'
-    ])
+def profile_view(request):
+    """
+    Show *my* profile. If the current User isn't linked to an Alumni yet,
+    try to find a matching Alumni by username/email/phone and link it.
+    """
+    try:
+        alumni = Alumni.objects.get(user=request.user)
+        return render(request, 'alumni/profile.html', {'alumni': alumni})
+    except Alumni.DoesNotExist:
+        # Try to find & (safely) link a matching alumni record
+        guesses = Alumni.objects.filter(
+            Q(email__iexact=request.user.email) |
+            Q(email__iexact=request.user.username) |
+            Q(contact_number=request.user.username)
+        ).order_by('-created_at')
 
-    if has_search_params and form.is_valid():
-        alumni_list = Alumni.objects.filter(status='approved')
-        
-        if form.cleaned_data['name']:
-            alumni_list = alumni_list.filter(name__icontains=form.cleaned_data['name'])
-        if form.cleaned_data['joining_year']:
-            alumni_list = alumni_list.filter(joining_year_ug=form.cleaned_data['joining_year'])
-        if form.cleaned_data['work_association']:
-            alumni_list = alumni_list.filter(current_work_association__icontains=form.cleaned_data['work_association'])
-        if form.cleaned_data['specialization']:
-            alumni_list = alumni_list.filter(specialty__icontains=form.cleaned_data['specialization'])
-        if form.cleaned_data['location']:
-            alumni_list = alumni_list.filter(
-                Q(city__icontains=form.cleaned_data['location']) |
-                Q(state__icontains=form.cleaned_data['location']) |
-                Q(country__icontains=form.cleaned_data['location'])
-            )
-        if form.cleaned_data['designation']:
-            alumni_list = alumni_list.filter(current_designation__icontains=form.cleaned_data['designation'])
+        match = guesses.first()
+        if match:
+            try:
+                # Only link if no other Alumni owns this user
+                if not Alumni.objects.filter(user=request.user).exclude(pk=match.pk).exists():
+                    match.user = request.user
+                    match.save(update_fields=['user'])
+            except IntegrityError:
+                pass
+            return render(request, 'alumni/profile.html', {'alumni': match})
 
-    alumni_list_with_delay = []
-    for idx, alumni in enumerate(alumni_list):
-        alumni_list_with_delay.append({
-            "alumni": alumni,
-            "delay": (idx + 1) * 50
-        })
-
-    return render(request, 'alumni/directory.html', {
-        'alumni_list': alumni_list_with_delay,
-        'filter_form': form,
-        'has_search_params': has_search_params
-    })
+        messages.error(request, 'Profile not found')
+        return redirect('alumni:directory')
 
 
 @login_required

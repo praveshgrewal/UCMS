@@ -9,9 +9,7 @@
         <!-- Directory Header -->
         <div class="directory-header">
             <div class="header-content">
-                <h1 class="directory-title">    <img src="{{ request.safe_photo_url }}" alt="{{ request.name }}">
-
-
+                <h1 class="directory-title">
                     <i class="fas fa-users"></i>
                     Alumni Directory
                 </h1>
@@ -158,9 +156,7 @@
                         <div class="profile-card-header">
                             <div class="profile-avatar">
                                 {% if item.alumni.photo %}
-                                        <img src="{{ request.safe_photo_url }}" alt="{{ request.name }}">
-
-
+                                    <img src="{{ item.alumni.safe_photo_url }}" alt="{{ item.alumni.name }}">
                                 {% else %}
                                     <div class="avatar-placeholder">
                                         <i class="fas fa-user-graduate"></i>
@@ -229,9 +225,7 @@
                         <div class="list-item-content">
                             <div class="list-avatar">
                                 {% if item.alumni.photo %}
-                                        <img src="{{ request.safe_photo_url }}" alt="{{ request.name }}">
-
-
+                                    <img src="{{ item.alumni.safe_photo_url }}" alt="{{ item.alumni.name }}">
                                 {% else %}
                                     <div class="avatar-placeholder">
                                         <i class="fas fa-user-graduate"></i>
@@ -316,60 +310,42 @@
 
 {% block extra_js %}
 <script>
-// We don't need the modal functionality anymore, so the JS can be simplified.
 document.addEventListener('DOMContentLoaded', function() {
     initializeDirectory();
     initializeAOS();
 });
-
 function initializeDirectory() {
-    // Initialize view toggle
     const viewButtons = document.querySelectorAll('.view-btn');
     viewButtons.forEach(btn => {
-        btn.addEventListener('click', () => {
-            const view = btn.dataset.view;
-            switchView(view);
-        });
+        btn.addEventListener('click', () => switchView(btn.dataset.view));
     });
 }
-
 function initializeAOS() {
     if (typeof AOS !== 'undefined') {
-        AOS.init({
-            duration: 600,
-            easing: 'ease-out-cubic',
-            once: true,
-            offset: 50
-        });
+        AOS.init({ duration: 600, easing: 'ease-out-cubic', once: true, offset: 50 });
     }
 }
-
 function toggleDirectorySearch() {
     const searchPanel = document.getElementById('directorySearchPanel');
-    const toggleBtn = document.querySelector('.search-toggle i');
-    
-    if (searchPanel.style.display === 'none' || !searchPanel.style.display) {
+    const toggleIcon = document.querySelector('.search-toggle i');
+    const nowHidden = searchPanel.style.display === 'none' || !searchPanel.style.display;
+    if (nowHidden) {
         searchPanel.style.display = 'block';
         searchPanel.style.animation = 'slideDown 0.4s ease-out';
-        toggleBtn.style.transform = 'rotate(180deg)';
+        toggleIcon.style.transform = 'rotate(180deg)';
     } else {
         searchPanel.style.animation = 'slideUp 0.4s ease-out';
         setTimeout(() => {
             searchPanel.style.display = 'none';
-            toggleBtn.style.transform = 'rotate(0deg)';
+            toggleIcon.style.transform = 'rotate(0deg)';
         }, 400);
     }
 }
-
 function switchView(viewType) {
     const gridView = document.getElementById('gridView');
     const listView = document.getElementById('listView');
     const viewButtons = document.querySelectorAll('.view-btn');
-    
-    viewButtons.forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.view === viewType);
-    });
-    
+    viewButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.view === viewType));
     if (viewType === 'grid') {
         gridView.style.display = 'grid';
         listView.style.display = 'none';
@@ -380,64 +356,29 @@ function switchView(viewType) {
         listView.style.animation = 'fadeIn 0.5s ease-out';
     }
 }
-
 function quickSearch(field, value) {
     const form = document.getElementById('directorySearchForm');
     const input = form.querySelector(`[name="${field}"]`);
-    if (input) {
-        input.value = value;
-        form.submit();
-    }
+    if (input) { input.value = value; form.submit(); }
 }
-
 function toggleFavorite(alumniId) {
     const button = event.target.closest('.favorite');
     const icon = button.querySelector('i');
-    
     if (icon.classList.contains('far')) {
-        icon.classList.remove('far');
-        icon.classList.add('fas');
-        button.style.color = '#e74c3c';
+        icon.classList.remove('far'); icon.classList.add('fas'); button.style.color = '#e74c3c';
     } else {
-        icon.classList.remove('fas');
-        icon.classList.add('far');
-        button.style.color = '';
+        icon.classList.remove('fas'); icon.classList.add('far'); button.style.color = '';
     }
 }
-
-// Debounce utility
-function debounce(func, wait) {
-    let timeout;
-    return function executedFunction(...args) {
-        const later = () => {
-            clearTimeout(timeout);
-            func(...args);
-        };
-        clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
-    };
-}
-
+// animations
 const directoryAnimations = `
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-@keyframes slideDown {
-    from { opacity: 0; transform: translateY(-20px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-@keyframes slideUp {
-    from { opacity: 1; transform: translateY(0); }
-    to { opacity: 0; transform: translateY(-20px); }
-}
+@keyframes fadeIn { from { opacity: 0; transform: translateY(20px);} to { opacity:1; transform: translateY(0);} }
+@keyframes slideDown { from { opacity:0; transform: translateY(-20px);} to { opacity:1; transform: translateY(0);} }
+@keyframes slideUp { from { opacity:1; transform: translateY(0);} to { opacity:0; transform: translateY(-20px);} }
 `;
-
 if (!document.getElementById('directory-animations')) {
-    const style = document.createElement('style');
-    style.id = 'directory-animations';
-    style.textContent = directoryAnimations;
-    document.head.appendChild(style);
+    const style = document.createElement('style'); style.id='directory-animations';
+    style.textContent = directoryAnimations; document.head.appendChild(style);
 }
 </script>
 {% endblock %}

@@ -19,7 +19,7 @@ SECRET_KEY = os.getenv("SECRET_KEY", "change-this-in-prod")
 ALLOWED_HOSTS = [
     host.strip() for host in os.getenv(
         "ALLOWED_HOSTS",
-        "localhost,127.0.0.1,ucmsalumni.com,www.ucmsalumni.com,.ondigitalocean.app"
+        "localhost,127.0.0.1,ucmsalumni.com,www.ucmsalumni.com,.ondigitalocean.app,143.110.184.44"
     ).split(",")
     if host.strip()
 ]

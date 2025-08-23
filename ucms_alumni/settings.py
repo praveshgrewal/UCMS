@@ -16,12 +16,21 @@ DEBUG = os.getenv("DEBUG", "False") == "True"
 SECRET_KEY = os.getenv("SECRET_KEY", "change-this-in-prod")
 
 # Include DO wildcard so app works before you know the exact URL
+# ALLOWED_HOSTS = [
+#     host.strip() for host in os.getenv(
+#         "ALLOWED_HOSTS",
+#         "localhost,127.0.0.1,ucmsalumni.com,www.ucmsalumni.com,.ondigitalocean.app,143.110.184.44"
+#     ).split(",")
+#     if host.strip()
+# ]
+
 ALLOWED_HOSTS = [
-    host.strip() for host in os.getenv(
-        "ALLOWED_HOSTS",
-        "localhost,127.0.0.1,ucmsalumni.com,www.ucmsalumni.com,.ondigitalocean.app,143.110.184.44"
-    ).split(",")
-    if host.strip()
+    "143.110.184.44",
+    "localhost",
+    "127.0.0.1",
+    "ucmsalumni.com",
+    "www.ucmsalumni.com",
+    ".ondigitalocean.app"
 ]
 
 # App Platform / reverse proxy headers

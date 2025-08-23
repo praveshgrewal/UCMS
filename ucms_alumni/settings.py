@@ -25,13 +25,14 @@ SECRET_KEY = os.getenv("SECRET_KEY", "change-this-in-prod")
 # ]
 
 ALLOWED_HOSTS = [
-    "143.110.184.44",
-    "143.110.184.44:8000",
-    "localhost",
-    "127.0.0.1",
-    "ucmsalumni.com",
-    "www.ucmsalumni.com",
-    ".ondigitalocean.app"
+    # "143.110.184.44",
+    # "143.110.184.44:8000",
+    # "localhost",
+    # "127.0.0.1",
+    # "ucmsalumni.com",
+    # "www.ucmsalumni.com",
+    # ".ondigitalocean.app"
+    "*"
 ]
 
 # App Platform / reverse proxy headers

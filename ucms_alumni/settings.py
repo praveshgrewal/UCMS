@@ -24,16 +24,16 @@ ALLOWED_HOSTS = [
     if host.strip()
 ]
 
-# ALLOWED_HOSTS = [
-#     # "143.110.184.44",
-#     # "143.110.184.44:8000",
-#     # "localhost",
-#     # "127.0.0.1",
-#     # "ucmsalumni.com",
-#     # "www.ucmsalumni.com",
-#     # ".ondigitalocean.app"
-#     "*"
-# ]
+ALLOWED_HOSTS = [
+    # "143.110.184.44",
+    # "143.110.184.44:8000",
+    # "localhost",
+    # "127.0.0.1",
+    # "ucmsalumni.com",
+    # "www.ucmsalumni.com",
+    # ".ondigitalocean.app"
+    "*"
+]
 
 # App Platform / reverse proxy headers
 USE_X_FORWARDED_HOST = True
